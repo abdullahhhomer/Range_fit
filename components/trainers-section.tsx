@@ -15,7 +15,7 @@ export default function TrainersSection() {
     },
     {
       name: "Muhammad Tayyab Zafar",
-      role: "Posture Porrection & Muscle Health Specialist",
+      role: "Posture Correction & Muscle Health Specialist",
       image: "/images/trainers/Tayyab.jpg",
       description: "With over 3 years of experience, I help people fix Posture, Relieve Stiffness, Burn Fat & Build Muscle.",
       instagram: "https://www.instagram.com/tayyab___x1?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
