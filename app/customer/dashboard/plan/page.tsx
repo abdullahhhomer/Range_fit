@@ -525,7 +525,7 @@ export default function MembershipPlansPage() {
                   <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600 text-center">
                     <div className="mb-4">
                       <Image
-                        src="/images/trainers/saad.jpg"
+                        src="/images/trainers/Saad.jpg"
                         alt="Muhammad Saad"
                         width={150}
                         height={180}
@@ -552,7 +552,7 @@ export default function MembershipPlansPage() {
                   <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600 text-center">
                     <div className="mb-4">
                       <Image
-                        src="/images/trainers/tayyab.jpg"
+                        src="/images/trainers/Tayyab.jpg"
                         alt="Muhammad Tayyab Zafar"
                         width={150}
                         height={180}
@@ -579,7 +579,7 @@ export default function MembershipPlansPage() {
                   <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600 text-center">
                     <div className="mb-4">
                       <Image
-                        src="/images/trainers/zain.jpg"
+                        src="/images/trainers/Zain.jpg"
                         alt="Muhammad Zain Ishfaq"
                         width={150}
                         height={180}

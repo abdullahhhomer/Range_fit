@@ -89,3 +89,4 @@ if (err.code === "auth/requires-recent-login") {
 The fix ensures that password updates work correctly for both Firebase Auth users and admin-set password users, preventing the authentication issues that were causing membership data loading failures.
 
 
+
