@@ -67,16 +67,8 @@ const ViewExpensePopup: React.FC<ViewExpensePopupProps> = ({ expense, onClose })
         className="bg-gray-900 border border-gray-700 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-between sticky top-0">
+        <div className="bg-gray-800 border-b border-gray-700 p-4 flex items-center justify-center sticky top-0">
           <h3 className="text-lg sm:text-xl font-bold text-white">View Expense</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="text-gray-400 hover:text-white hover:bg-gray-700 rounded-full p-2 min-w-[40px] min-h-[40px]"
-          >
-            <X className="w-4 h-4" />
-          </Button>
         </div>
         
         <div className="p-4 space-y-4">
@@ -118,16 +110,6 @@ const ViewExpensePopup: React.FC<ViewExpensePopupProps> = ({ expense, onClose })
             </div>
           </div>
 
-          {/* Action Button */}
-          <div className="flex justify-end pt-4 border-t border-gray-700">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="border-orange-500/50 text-orange-400 hover:bg-orange-100 hover:border-orange-400 hover:text-orange-600 hover:scale-105 transition-all duration-200 bg-white"
-            >
-              Close
-            </Button>
-          </div>
         </div>
       </div>
     </div>
