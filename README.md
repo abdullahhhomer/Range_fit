@@ -2,7 +2,6 @@
 
 <div align="center">
 
-![RangeFit](https://img.shields.io/badge/RangeFit-Gym_Management-orange?style=for-the-badge&logo=dumbbell&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-039BE5?style=for-the-badge&logo=Firebase&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
