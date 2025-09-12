@@ -112,6 +112,31 @@ export default function ReceiptsPage() {
   }
 
   const generateReceiptHTML = (receipt: ReceiptData) => {
+    // Debug: Log receipt data to see what fields are available
+    console.log('Receipt data:', receipt)
+    console.log('Registration fee fields:', {
+      registrationFee: receipt.registrationFee,
+      customRegistrationFee: receipt.customRegistrationFee,
+      discount: receipt.discount,
+      discountAmount: receipt.discountAmount,
+      planMembershipFee: receipt.planMembershipFee,
+      totalAmount: receipt.totalAmount,
+      amount: receipt.amount
+    })
+    
+    // Calculate correct values for display
+    const registrationFeeAmount = receipt.registrationFee ? (receipt.customRegistrationFee || 5000) : 0
+    const discountAmount = receipt.discount ? (receipt.discountAmount || 0) : 0
+    const calculatedPlanFee = receipt.planMembershipFee || receipt.amount
+    const calculatedTotal = receipt.totalAmount || receipt.amount
+    
+    console.log('Calculated values:', {
+      registrationFeeAmount,
+      discountAmount,
+      calculatedPlanFee,
+      calculatedTotal
+    })
+    
     const formatDate = (date: Date | Timestamp) => {
       let dateObj: Date;
       if (date instanceof Timestamp) {
@@ -300,22 +325,36 @@ export default function ReceiptsPage() {
             
             <div class="amount-section">
               <div class="amount-label">Total Amount Paid</div>
-              <div class="amount-value">${formatCurrency(receipt.amount)}</div>
+              <div class="amount-value">${formatCurrency(calculatedTotal)}</div>
             </div>
             
             <div class="info-section">
               <h3>Payment Summary</h3>
               <div class="info-row">
-                <span class="info-label">Membership Fee:</span>
-                <span class="info-value">${formatCurrency(receipt.amount)}</span>
+                <span class="info-label">Plan Membership Fee:</span>
+                <span class="info-value">${formatCurrency(calculatedPlanFee)}</span>
               </div>
+              ${registrationFeeAmount > 0 ? `
               <div class="info-row">
-                <span class="info-label">Tax:</span>
-                <span class="info-value">Rs. 0</span>
+                <span class="info-label">Registration Fee:</span>
+                <span class="info-value">${formatCurrency(registrationFeeAmount)}</span>
               </div>
+              ` : ''}
+              ${discountAmount > 0 ? `
+              <div class="info-row">
+                <span class="info-label">Discount:</span>
+                <span class="info-value" style="color: #10b981;">- ${formatCurrency(discountAmount)}</span>
+              </div>
+              ` : ''}
+              ${registrationFeeAmount === 0 && discountAmount === 0 ? `
+              <div class="info-row" style="color: #666; font-style: italic;">
+                <span class="info-label">Note:</span>
+                <span class="info-value">This receipt was generated before detailed breakdown was available</span>
+              </div>
+              ` : ''}
               <div class="info-row" style="border-top: 2px solid #ff6b35; padding-top: 10px; font-weight: bold;">
-                <span class="info-label">Total:</span>
-                <span class="info-value">${formatCurrency(receipt.amount)}</span>
+                <span class="info-label">Total Amount:</span>
+                <span class="info-value">${formatCurrency(calculatedTotal)}</span>
               </div>
             </div>
           </div>
@@ -328,7 +367,7 @@ export default function ReceiptsPage() {
             <div class="gym-details">
               <strong>RangeFit Gym</strong><br>
               Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan<br>
-              Phone: ${receipt.gymPhone} | Email: ${receipt.gymEmail}<br>
+              Phone: ${receipt.gymPhone}<br>
               Generated on: ${formatDate(receipt.createdAt)}
             </div>
           </div>

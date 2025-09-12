@@ -97,10 +97,14 @@ export const createMembership = async (requestData: any, additionalData?: any) =
     const endDate = additionalData?.endDate || requestData.endDate || new Date()
     const totalAmount = additionalData?.totalAmount || requestData.amount
     
+    // Store the actual plan membership fee (base amount before registration fee and discount)
+    const planMembershipFee = requestData.amount || 0
+    
     const membershipData = {
       uid: requestData.uid,
       planType: requestData.planType,
       amount: totalAmount, // Use total amount including registration fee
+      planMembershipFee: planMembershipFee, // Store the actual plan fee separately
       paymentMethod: requestData.paymentMethod || "Cash",
       transactionId: requestData.transactionId,
       startDate: startDate,
@@ -118,21 +122,36 @@ export const createMembership = async (requestData: any, additionalData?: any) =
     await addDoc(membershipRef, membershipData)
 
     // Update user document with membership info
-    await updateUserDocument(requestData.uid, {
+    const userUpdateData: any = {
       membershipStatus: "active",
       membershipPlan: requestData.planType,
       membershipAmount: totalAmount,
       membershipStartDate: startDate,
       membershipExpiryDate: endDate,
       lastRenewalReminder: new Date()
-    })
+    }
+
+    // Only add defined values to avoid Firebase errors
+    if (additionalData?.registrationFee !== undefined) userUpdateData.registrationFee = additionalData.registrationFee
+    if (additionalData?.customRegistrationFee !== undefined) userUpdateData.customRegistrationFee = additionalData.customRegistrationFee
+    if (additionalData?.discount !== undefined) userUpdateData.discount = additionalData.discount
+    if (additionalData?.discountAmount !== undefined) userUpdateData.discountAmount = additionalData.discountAmount
+    if (totalAmount !== undefined) userUpdateData.totalAmount = totalAmount
+
+    await updateUserDocument(requestData.uid, userUpdateData)
 
     // Generate receipt for the membership
     await generateMembershipReceipt({
       ...requestData,
       amount: totalAmount,
       startDate: startDate,
-      endDate: endDate
+      endDate: endDate,
+      // Pass new fields for receipt generation
+      registrationFee: additionalData?.registrationFee,
+      customRegistrationFee: additionalData?.customRegistrationFee,
+      discount: additionalData?.discount,
+      discountAmount: additionalData?.discountAmount,
+      totalAmount: totalAmount
     })
 
     console.log(`✅ Membership created for user ${requestData.uid}`)
@@ -159,6 +178,9 @@ const createPaymentRecord = async (requestData: any, additionalData?: any) => {
       approvedBy: additionalData?.approvedBy || "admin",
       approvalDate: new Date(),
       registrationFee: additionalData?.registrationFee || false,
+      customRegistrationFee: additionalData?.customRegistrationFee || 0,
+      discount: additionalData?.discount || false,
+      discountAmount: additionalData?.discountAmount || 0,
       membershipStartDate: additionalData?.startDate || requestData.startDate,
       membershipEndDate: additionalData?.endDate || requestData.endDate
     }
@@ -183,6 +205,10 @@ const generateMembershipReceipt = async (membershipData: any) => {
       return
     }
 
+    // The plan membership fee is the base amount before any registration fee or discount
+    // This should be stored separately and not calculated from the total amount
+    const planMembershipFee = membershipData.planMembershipFee || membershipData.amount
+    
     const receiptData = {
       userId: membershipData.uid,
       memberId: userData.memberId || "N/A",
@@ -195,9 +221,16 @@ const generateMembershipReceipt = async (membershipData: any) => {
       endDate: membershipData.endDate,
       status: "active" as const,
       gymName: "RangeFit Gym",
-      gymAddress: "123 Fitness Street, Karachi, Pakistan",
-      gymPhone: "+92-300-1234567",
-      gymEmail: "info@rangefitgym.com"
+      gymAddress: "Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan",
+      gymPhone: "0332 5727216",
+      gymEmail: "info@rangefitgym.com",
+      // New fields for detailed breakdown
+      planMembershipFee: planMembershipFee,
+      registrationFee: membershipData.registrationFee || false,
+      customRegistrationFee: membershipData.customRegistrationFee || 0,
+      discount: membershipData.discount || false,
+      discountAmount: membershipData.discountAmount || 0,
+      totalAmount: membershipData.amount
     }
 
     await createReceipt(receiptData)

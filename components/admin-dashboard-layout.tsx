@@ -84,7 +84,7 @@ export default function AdminDashboardLayout({ children }: AdminDashboardLayoutP
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-900/95 backdrop-blur-sm border-r border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-50 w-72 bg-gray-900/95 backdrop-blur-sm border-r border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex flex-col h-full">
           {/* User Info */}
@@ -100,7 +100,7 @@ export default function AdminDashboardLayout({ children }: AdminDashboardLayoutP
 
           {/* Navigation */}
           <nav className="flex-1 p-6">
-            <ul className="space-y-2">
+            <ul className="space-y-1">
               {navigation.map((item) => {
                 const isActive = pathname === item.href || 
                   (item.href === '/admin/dashboard/reports' && pathname.startsWith('/admin/dashboard/reports')) ||
@@ -112,14 +112,14 @@ export default function AdminDashboardLayout({ children }: AdminDashboardLayoutP
                         router.push(item.href)
                         setSidebarOpen(false)
                       }}
-                      className={`w-full flex items-center space-x-2 px-4 py-3 rounded-lg transition-colors ${
+                      className={`w-full flex items-center space-x-2 px-3 py-2.5 rounded-lg transition-colors ${
                         isActive
                           ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
                           : "text-gray-300 hover:bg-gray-800 hover:text-white"
                       }`}
                     >
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.name}</span>
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <span className="text-sm whitespace-nowrap">{item.name}</span>
                     </button>
                   </li>
                 )
@@ -142,7 +142,7 @@ export default function AdminDashboardLayout({ children }: AdminDashboardLayoutP
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         {/* Mobile header */}
         <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm">
           <Button

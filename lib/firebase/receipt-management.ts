@@ -32,6 +32,13 @@ export interface ReceiptData {
   gymAddress: string
   gymPhone: string
   gymEmail: string
+  // New fields for detailed breakdown
+  planMembershipFee?: number
+  registrationFee?: boolean
+  customRegistrationFee?: number
+  discount?: boolean
+  discountAmount?: number
+  totalAmount?: number
 }
 
 // Generate unique receipt number

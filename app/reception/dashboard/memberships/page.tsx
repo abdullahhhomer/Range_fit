@@ -48,6 +48,9 @@ interface MembershipData {
   membershipAmount?: number
   membershipStartDate?: Date
   registrationFee?: boolean
+  customRegistrationFee?: number
+  discount?: boolean
+  discountAmount?: number
   totalAmount?: number
   isVisitor?: boolean
   visitorName?: string
@@ -251,7 +254,10 @@ export default function ReceptionMembershipsManagement() {
               membershipAmount: membershipData.amount || 0,
               membershipStartDate: membershipData.startDate?.toDate(),
               registrationFee: membershipData.registrationFee || false,
-              totalAmount: membershipData.amount || 0,
+              customRegistrationFee: membershipData.customRegistrationFee || 0,
+              discount: membershipData.discount || false,
+              discountAmount: membershipData.discountAmount || 0,
+              totalAmount: membershipData.totalAmount || membershipData.amount || 0,
               // Visitor-specific fields
               isVisitor: membershipData.isVisitor || false,
               visitorName: membershipData.visitorName || '',
@@ -313,7 +319,10 @@ export default function ReceptionMembershipsManagement() {
               membershipAmount: membershipData.amount || 0,
               membershipStartDate: membershipData.startDate?.toDate(),
               registrationFee: membershipData.registrationFee || false,
-              totalAmount: membershipData.amount || 0,
+              customRegistrationFee: membershipData.customRegistrationFee || 0,
+              discount: membershipData.discount || false,
+              discountAmount: membershipData.discountAmount || 0,
+              totalAmount: membershipData.totalAmount || membershipData.amount || 0,
               // Visitor-specific fields
               isVisitor: true,
               visitorName: membershipData.visitorName || '',
@@ -1044,20 +1053,23 @@ export default function ReceptionMembershipsManagement() {
                                  </span>
                                ) : (
                                  <span className="text-gray-500 text-sm">
-                                   No Plan (Debug: {membership.membershipPlan || 'undefined'})
+                                   No Plan
                                  </span>
                                )}
                              </div>
                            </td>
                                                      <td className="p-3">
                              <div className="text-gray-300">
-                               {membership.totalAmount ? (
+                               {membership.totalAmount !== undefined && membership.totalAmount !== null ? (
                                  <div className="flex items-center space-x-2">
                                    <span className="text-sm font-medium">
                                      Rs. {membership.totalAmount.toLocaleString()}
                                    </span>
                                    {membership.registrationFee && (
                                      <Badge className="bg-blue-600 text-xs">+Reg Fee</Badge>
+                                   )}
+                                   {membership.discount && membership.discountAmount && membership.discountAmount > 0 && (
+                                     <Badge className="bg-green-600 text-xs">Discount</Badge>
                                    )}
                                  </div>
                                ) : (

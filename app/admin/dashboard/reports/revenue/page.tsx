@@ -23,13 +23,17 @@ import {
   Plus,
   X,
   Banknote,
-  Loader2
+  Loader2,
+  Eye,
+  Edit,
+  Trash2
 } from 'lucide-react'
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { 
   getAvailablePaymentMonths,
+  getAvailableExpenseMonths,
   getMonthlyRevenueSummary,
   getPaymentsByMonth,
   getPaymentsByYear,
@@ -41,6 +45,8 @@ import {
   getYearlyExpenseSummary,
   getNetRevenueForMonth,
   getNetRevenueForYear,
+  updateExpenseRecord,
+  deleteExpenseRecord,
   type OptimizedPaymentRecord,
   type ExpenseRecord,
   type MonthlyExpenseSummary
@@ -48,6 +54,7 @@ import {
 import { collection, query, getDocs, where, orderBy, doc, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase/config'
 import { getProfileImageUrl } from '@/lib/cloudinary-client'
+import { RecentExpensesTable } from '@/components/recent-expenses-table'
 
 interface RevenueData {
   period: string
@@ -60,6 +67,10 @@ interface RevenueData {
 
 interface EnhancedPaymentRecord extends OptimizedPaymentRecord {
   profileImageUrl?: string
+  registrationFee?: boolean
+  customRegistrationFee?: number
+  discount?: boolean
+  discountAmount?: number
 }
 
 export default function RevenueReport() {
@@ -72,6 +83,7 @@ export default function RevenueReport() {
   const [selectedPeriod, setSelectedPeriod] = useState('')
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [availableYears, setAvailableYears] = useState<number[]>([])
+  const [displayedPaymentsCount, setDisplayedPaymentsCount] = useState(15)
 
   // Dropdown state
   const [timeRangeDropdownOpen, setTimeRangeDropdownOpen] = useState(false)
@@ -144,6 +156,28 @@ export default function RevenueReport() {
     }
   }
 
+  const handleExpenseUpdate = async (expenseId: string, updatedExpense: Partial<ExpenseRecord>) => {
+    try {
+      await updateExpenseRecord(expenseId, updatedExpense)
+      toast.success('Expense updated successfully')
+      loadRevenueData()
+    } catch (error) {
+      console.error('Error updating expense:', error)
+      throw error
+    }
+  }
+
+  const handleExpenseDelete = async (expenseId: string) => {
+    try {
+      await deleteExpenseRecord(expenseId)
+      toast.success('Expense deleted successfully')
+      loadRevenueData()
+    } catch (error) {
+      console.error('Error deleting expense:', error)
+      throw error
+    }
+  }
+
   const closeExpensePopup = () => {
     setShowAddExpensePopup(false)
     setExpenseFormData({
@@ -152,6 +186,11 @@ export default function RevenueReport() {
       category: 'Utility Bills',
       description: ''
     })
+  }
+
+  // Load more payments function
+  const loadMorePayments = () => {
+    setDisplayedPaymentsCount(prev => prev + 15)
   }
 
   // Close dropdowns when clicking outside
@@ -178,52 +217,13 @@ export default function RevenueReport() {
 
   useEffect(() => {
     if (selectedPeriod) {
+      setDisplayedPaymentsCount(15) // Reset to show first 15 when period changes
       loadRevenueData()
     }
   }, [selectedPeriod, timeRange])
 
-  // Calculate revenue data when payments or expenses change
-  useEffect(() => {
-    const calculateRevenueData = () => {
-      let data: RevenueData[] = []
-
-      if (timeRange === 'monthly') {
-        const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0)
-        const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-        const transactions = payments.length
-        const averageTransaction = transactions > 0 ? totalRevenue / transactions : 0
-        
-        data = [{
-          period: selectedPeriod,
-          revenue: totalRevenue,
-          transactions: transactions,
-          averageTransaction: averageTransaction,
-          expenses: totalExpenses,
-          netRevenue: totalRevenue - totalExpenses
-        }]
-      } else if (timeRange === 'yearly') {
-        const year = parseInt(selectedPeriod.split('-')[0])
-        const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0)
-        const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-        const transactions = payments.length
-        const averageTransaction = transactions > 0 ? totalRevenue / transactions : 0
-        
-        data = [{
-          period: year.toString(),
-          revenue: totalRevenue,
-          transactions: transactions,
-          averageTransaction: averageTransaction,
-          expenses: totalExpenses,
-          netRevenue: totalRevenue - totalExpenses
-        }]
-      }
-
-      console.log('Revenue data calculated:', data)
-      setRevenueData(data)
-    }
-
-    calculateRevenueData()
-  }, [payments, expenses, selectedPeriod, timeRange])
+  // Note: Revenue data is now calculated directly in loadRevenueData() using Firebase summaries
+  // This ensures consistency between filtered data and calculations
 
   const loadRevenueData = useCallback(async () => {
     try {
@@ -333,6 +333,13 @@ export default function RevenueReport() {
             profileImageUrl: userData?.profileImageUrl
           })
         }
+        
+        // Sort payments by creation date (most recent first)
+        enhancedPayments.sort((a, b) => {
+          const dateA = new Date(a.createdAt).getTime()
+          const dateB = new Date(b.createdAt).getTime()
+          return dateB - dateA // Most recent first
+        })
       }
 
       console.log('Setting data - Revenue:', data.length, 'Payments:', enhancedPayments.length, 'Expenses:', expenseData.length)
@@ -350,18 +357,25 @@ export default function RevenueReport() {
     setLoading(true)
     try {
       console.log('Loading initial data...')
-      const months = await getAvailablePaymentMonths()
-      console.log('Available months:', months)
-      setAvailableMonths(months)
+      // Get both payment and expense months to show all available data
+      const [paymentMonths, expenseMonths] = await Promise.all([
+        getAvailablePaymentMonths(),
+        getAvailableExpenseMonths()
+      ])
+      
+      // Combine and deduplicate months
+      const allMonths = [...new Set([...paymentMonths, ...expenseMonths])].sort((a, b) => b.localeCompare(a))
+      console.log('Available months (combined):', allMonths)
+      setAvailableMonths(allMonths)
       
       // Extract unique years from months
-      const years = [...new Set(months.map(month => parseInt(month.split('-')[0])))].sort((a, b) => b - a)
+      const years = [...new Set(allMonths.map(month => parseInt(month.split('-')[0])))].sort((a, b) => b - a)
       console.log('Available years:', years)
       setAvailableYears(years)
       
-      if (months.length > 0) {
-        console.log('Setting selected period to:', months[0])
-        setSelectedPeriod(months[0])
+      if (allMonths.length > 0) {
+        console.log('Setting selected period to:', allMonths[0])
+        setSelectedPeriod(allMonths[0])
         setTimeRange('monthly')
       } else {
         console.log('No months available, setting current month')
@@ -533,18 +547,28 @@ export default function RevenueReport() {
     
     // Add payments section
     reportData.push(['PAYMENTS DATA'])
-    reportData.push(['Date', 'Member Name', 'Email', 'Plan Type', 'Amount', 'Payment Method', 'Status', 'Registration Fee'])
+    reportData.push(['Date', 'Member Name', 'Email', 'Plan Type', 'Registration Fee', 'Discount', 'Total Amount', 'Payment Method', 'Status'])
     
     payments.forEach(payment => {
+      // Calculate registration fee amount
+      const registrationFeeAmount = payment.planType?.toLowerCase().includes('visitor') ? '-' : 
+        (payment.customRegistrationFee && payment.customRegistrationFee > 0) ? payment.customRegistrationFee :
+        payment.registrationFee ? 5000 : '-'
+      
+      // Calculate discount amount
+      const discountAmount = payment.planType?.toLowerCase().includes('visitor') ? '-' :
+        (payment.discountAmount && payment.discountAmount > 0) ? payment.discountAmount : '-'
+      
       reportData.push([
         payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : 'Unknown',
         payment.userName || 'Unknown',
         payment.userEmail || '',
         payment.planType,
+        registrationFeeAmount,
+        discountAmount,
         payment.amount,
         payment.paymentMethod,
-        payment.status,
-        hasRegistrationFee(payment) ? 'Yes' : 'No'
+        payment.status
       ])
     })
     
@@ -930,14 +954,16 @@ export default function RevenueReport() {
                     <tr className="border-b border-gray-700">
                       <th className="text-left p-3 text-gray-300 font-medium">Member</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Plan</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Amount</th>
+                      <th className="text-left p-3 text-gray-300 font-medium">Registration Fee</th>
+                      <th className="text-left p-3 text-gray-300 font-medium">Discount</th>
+                      <th className="text-left p-3 text-gray-300 font-medium">Total Amount</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Payment Method</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Status</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Date</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.slice(0, 15).map((payment) => (
+                    {payments.slice(0, displayedPaymentsCount).map((payment) => (
                       <tr key={payment.transactionId} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                         <td className="p-3">
                           <div className="flex items-center space-x-3">
@@ -967,14 +993,39 @@ export default function RevenueReport() {
                         </td>
                         <td className="p-3">
                           <div className="text-gray-300">
-                            <div className="flex items-center space-x-2">
+                            {payment.planType?.toLowerCase().includes('visitor') ? (
+                              <span className="text-gray-500 text-sm">-</span>
+                            ) : payment.customRegistrationFee && payment.customRegistrationFee > 0 ? (
                               <span className="text-sm font-medium">
-                                PKR {payment.amount.toLocaleString()}
+                                PKR {payment.customRegistrationFee.toLocaleString()}
                               </span>
-                              {hasRegistrationFee(payment) && (
-                                <Badge className="bg-blue-600 text-xs">+Reg Fee</Badge>
-                              )}
-                            </div>
+                            ) : payment.registrationFee ? (
+                              <span className="text-sm font-medium">
+                                PKR 5,000
+                              </span>
+                            ) : (
+                              <span className="text-gray-500 text-sm">-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-gray-300">
+                            {payment.planType?.toLowerCase().includes('visitor') ? (
+                              <span className="text-gray-500 text-sm">-</span>
+                            ) : payment.discountAmount && payment.discountAmount > 0 ? (
+                              <span className="text-sm font-medium text-green-400">
+                                PKR {payment.discountAmount.toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-gray-500 text-sm">-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-gray-300">
+                            <span className="text-sm font-medium">
+                              PKR {payment.amount.toLocaleString()}
+                            </span>
                           </div>
                         </td>
                         <td className="p-3">
@@ -1007,9 +1058,19 @@ export default function RevenueReport() {
                     ))}
                   </tbody>
                 </table>
-                {payments.length > 15 && (
+                {payments.length > displayedPaymentsCount && (
+                  <div className="text-center mt-6">
+                    <Button
+                      onClick={loadMorePayments}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all duration-200 hover:scale-105"
+                    >
+                      Load More Transactions
+                    </Button>
+                  </div>
+                )}
+                {payments.length <= displayedPaymentsCount && payments.length > 0 && (
                   <div className="text-center mt-4">
-                    <p className="text-gray-400">Showing first 15 transactions. Use filters to narrow down results.</p>
+                    <p className="text-gray-400">Showing all {payments.length} transactions</p>
                   </div>
                 )}
               </div>
@@ -1017,77 +1078,11 @@ export default function RevenueReport() {
           </Card>
 
           {/* Recent Expenses */}
-          <Card className="bg-gray-800/50 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Banknote className="h-5 w-5" />
-                Recent Expenses ({expenses.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-700">
-                      <th className="text-left p-3 text-gray-300 font-medium">Title</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Category</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Amount</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {expenses.slice(0, 10).map((expense) => (
-                      <tr key={expense.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                        <td className="p-3">
-                          <div className="text-white font-medium">{expense.title}</div>
-                          {expense.description && (
-                            <p className="text-gray-400 text-xs mt-1">{expense.description}</p>
-                          )}
-                        </td>
-                        <td className="p-3">
-                          <Badge className={
-                            expense.category === 'Utility Bills' ? 'bg-blue-600' :
-                            expense.category === 'Staff Fee' ? 'bg-green-600' :
-                            expense.category === 'Equipment' ? 'bg-purple-600' :
-                            expense.category === 'Maintenance' ? 'bg-orange-600' :
-                            expense.category === 'Marketing' ? 'bg-pink-600' :
-                            'bg-gray-600'
-                          }>
-                            {expense.category}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <span className="text-red-400 font-bold">
-                            {formatCurrency(expense.amount)}
-                          </span>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-gray-300">
-                            <div className="flex items-center space-x-1">
-                              <Calendar className="h-3 w-3" />
-                              <span className="text-sm">
-                                {expense.createdAt ? new Date(expense.createdAt.toDate()).toLocaleDateString() : 'Unknown'}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {expenses.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-400">No expenses recorded for this period</p>
-                  </div>
-                )}
-                {expenses.length > 10 && (
-                  <div className="text-center mt-4">
-                    <p className="text-gray-400">Showing first 10 expenses. Use filters to narrow down results.</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <RecentExpensesTable
+            expenses={expenses}
+            onExpenseUpdate={handleExpenseUpdate}
+            onExpenseDelete={handleExpenseDelete}
+          />
 
           {/* Add Expense Popup */}
           {showAddExpensePopup && (

@@ -49,8 +49,7 @@ export default function UserEditPopup({
     fatherName: '',
     email: '',
     address: '',
-    phone: '',
-    newPassword: ''
+    phone: ''
   })
   const [isUpdating, setIsUpdating] = useState(false)
   const [genderDropdownOpen, setGenderDropdownOpen] = useState(false)
@@ -80,8 +79,7 @@ export default function UserEditPopup({
       fatherName: user.fatherName || '',
       email: user.email || '',
       address: user.address || '',
-      phone: user.phone ? formatPhoneNumber(user.phone) : '',
-      newPassword: ''
+      phone: user.phone ? formatPhoneNumber(user.phone) : ''
     })
   }, [user, formatPhoneNumber])
 
@@ -99,11 +97,6 @@ export default function UserEditPopup({
       // Only update email if it changed
       if (editFormData.email !== user.email) {
         updateData.email = editFormData.email
-      }
-
-      // Handle password change separately if provided
-      if (editFormData.newPassword && editFormData.newPassword.trim() !== '') {
-        updateData.newPassword = editFormData.newPassword
       }
 
       await onUpdate(updateData)
@@ -295,25 +288,6 @@ export default function UserEditPopup({
                 </div>
               </div>
 
-              {/* Password Reset Section */}
-              <div className="space-y-2 sm:space-y-3">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1 sm:mb-2">
-                    Set New Password
-                  </label>
-                  <Input
-                    type="password"
-                    name="newPassword"
-                    placeholder="Enter new password for user"
-                    value={editFormData.newPassword}
-                    onChange={handleChange}
-                    className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:ring-orange-500 focus:border-orange-500 h-10 sm:h-11 text-sm sm:text-base"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    User can login immediately with this new password.
-                  </p>
-                </div>
-              </div>
 
               {/* Address Section */}
               <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3 sm:p-4">

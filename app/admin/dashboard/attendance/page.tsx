@@ -49,23 +49,23 @@ export default function AttendanceManagement() {
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
       <AdminDashboardLayout>
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
           {/* Header */}
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-white">Attendance Management</h1>
-              <p className="text-gray-400 mt-2">Monitor and manage gym attendance, check-ins, and member activity</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white">Attendance Management</h1>
+              <p className="text-gray-400 mt-2 text-sm sm:text-base">Monitor and manage gym attendance, check-ins, and member activity</p>
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <Button 
                 variant="outline"
-                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                className="border-gray-600 text-gray-300 hover:bg-gray-700 text-sm sm:text-base"
               >
                 <Download className="mr-2 h-4 w-4" />
                 Export
               </Button>
               <Button 
-                className="bg-orange-600 hover:bg-orange-700"
+                className="bg-orange-600 hover:bg-orange-700 text-sm sm:text-base"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Record
@@ -74,38 +74,38 @@ export default function AttendanceManagement() {
           </div>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <Card className="bg-gray-800/50 border-gray-700">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Total Members</CardTitle>
-                <Users className="h-4 w-4 text-blue-500" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-300">Total Members</CardTitle>
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">156</div>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="text-lg sm:text-2xl font-bold text-white">156</div>
                 <p className="text-xs text-gray-400 mt-1">Registered members</p>
               </CardContent>
             </Card>
 
             <Card className="bg-gray-800/50 border-gray-700">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Present Today</CardTitle>
-                <CheckCircle className="h-4 w-4 text-green-500" />
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-300">Present Today</CardTitle>
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">142</div>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="text-lg sm:text-2xl font-bold text-white">142</div>
                 <p className="text-xs text-gray-400 mt-1">
                   <span className="text-green-500">91%</span> attendance rate
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gray-800/50 border-gray-700">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-gray-300">Late Today</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-yellow-500" />
+            <Card className="bg-gray-800/50 border-gray-700 sm:col-span-2 lg:col-span-1">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-gray-300">Late Today</CardTitle>
+                <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-white">8</div>
+              <CardContent className="p-4 sm:p-6 pt-0">
+                <div className="text-lg sm:text-2xl font-bold text-white">8</div>
                 <p className="text-xs text-gray-400 mt-1">Late arrivals</p>
               </CardContent>
             </Card>
@@ -113,31 +113,31 @@ export default function AttendanceManagement() {
 
           {/* Filters and Search */}
           <Card className="bg-gray-800/50 border-gray-700">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="relative">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div className="relative sm:col-span-2 lg:col-span-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     placeholder="Search attendance..."
-                    className="pl-10 bg-gray-700 border-gray-600 text-white"
+                    className="pl-10 bg-gray-700 border-gray-600 text-white h-10 sm:h-11"
                   />
                 </div>
                 
-                <select className="bg-gray-700 border-gray-600 text-white rounded-md px-3 py-2">
+                <select className="bg-gray-700 border-gray-600 text-white rounded-md px-3 py-2 h-10 sm:h-11 text-sm">
                   <option value="today">Today</option>
                   <option value="yesterday">Yesterday</option>
                   <option value="this_week">This Week</option>
                   <option value="all">All Time</option>
                 </select>
 
-                <select className="bg-gray-700 border-gray-600 text-white rounded-md px-3 py-2">
+                <select className="bg-gray-700 border-gray-600 text-white rounded-md px-3 py-2 h-10 sm:h-11 text-sm">
                   <option value="all">All Status</option>
                   <option value="present">Present</option>
                   <option value="absent">Absent</option>
                   <option value="late">Late</option>
                 </select>
 
-                <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
+                <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700 h-10 sm:h-11 text-sm">
                   <Filter className="mr-2 h-4 w-4" />
                   More Filters
                 </Button>
@@ -147,16 +147,16 @@ export default function AttendanceManagement() {
 
           {/* Attendance Records Table */}
           <Card className="bg-gray-800/50 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-white text-sm sm:text-base">
                 Attendance Records (142 of 156)
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-400">
-                <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Attendance records will be displayed here</p>
-                <p className="text-sm">Use filters above to search and view specific records</p>
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="text-center py-6 sm:py-8 text-gray-400">
+                <Activity className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-sm sm:text-base">Attendance records will be displayed here</p>
+                <p className="text-xs sm:text-sm mt-2">Use filters above to search and view specific records</p>
               </div>
             </CardContent>
           </Card>

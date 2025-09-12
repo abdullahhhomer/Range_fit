@@ -28,6 +28,58 @@ export const generateUniqueMemberId = async (): Promise<string> => {
   }
 }
 
+// Update user email and password with re-authentication
+export const updateUserEmailAndPassword = async (
+  currentPassword: string,
+  newEmail: string,
+  newPassword: string,
+  userEmail: string
+) => {
+  try {
+    // Single database query to get user data
+    const usersRef = collection(db, "users")
+    const q = query(usersRef, where("email", "==", userEmail))
+    const querySnapshot = await getDocs(q)
+    
+    if (querySnapshot.empty) {
+      throw new Error("User not found")
+    }
+    
+    const userDoc = querySnapshot.docs[0]
+    const userData = userDoc.data()
+    
+    // Verify current password
+    const expectedPassword = userData.passwordHash || "admin12345"
+    if (expectedPassword !== currentPassword) {
+      throw new Error("Current password is incorrect")
+    }
+    
+    // Update email and password in Firestore
+    const userRef = doc(db, "users", userDoc.id)
+    await setDoc(userRef, { 
+      email: newEmail,
+      passwordHash: newPassword,
+      lastPasswordUpdate: new Date()
+    }, { merge: true })
+    
+    // Update Firebase Auth email and password if user is currently authenticated
+    if (auth.currentUser && auth.currentUser.email === userEmail) {
+      try {
+        await updateEmail(auth.currentUser, newEmail)
+        await updatePassword(auth.currentUser, newPassword)
+      } catch (firebaseError: any) {
+        // Don't fail the operation - Firestore update is more important
+        console.warn('Could not update Firebase Auth email/password:', firebaseError)
+      }
+    }
+    
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating email and password:", error)
+    throw error
+  }
+}
+
 // Update user password with re-authentication - optimized
 export const updateUserPasswordWithReauth = async (
   currentPassword: string,

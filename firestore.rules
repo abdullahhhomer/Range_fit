@@ -132,13 +132,13 @@ service cloud.firestore {
     
     // Expenses collection
     match /expenses/{expenseId} {
-      // Allow admin users to read and write all expenses
-      allow read, write: if isAdmin();
+      // Allow admin and receptionist users to read and write all expenses
+      allow read, write: if isAdminOrReceptionist();
     }
     
-    // Allow admin users to query all expenses
+    // Allow admin and receptionist users to query all expenses
     match /expenses/{document=**} {
-      allow read: if isAdmin();
+      allow read: if isAdminOrReceptionist();
     }
   }
 }

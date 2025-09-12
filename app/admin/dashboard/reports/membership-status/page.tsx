@@ -40,11 +40,15 @@ interface MembershipData {
   email: string
   memberId?: string
   phone?: string
+  gender?: string
   profileImageUrl?: string
   membershipPlan?: string
   membershipAmount?: number
   totalAmount?: number
   registrationFee?: boolean
+  customRegistrationFee?: number
+  discount?: boolean
+  discountAmount?: number
   membershipStatus?: "active" | "pending" | "expired" | "no_plan"
   membershipExpiryDate?: Date
   membershipStartDate?: Date
@@ -61,6 +65,7 @@ interface MembershipData {
 export default function MembershipStatusReport() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
+  const [filterLoading, setFilterLoading] = useState(false)
   const [memberships, setMemberships] = useState<MembershipData[]>([])
   const [filteredMemberships, setFilteredMemberships] = useState<MembershipData[]>([])
   const [dateRange, setDateRange] = useState({
@@ -100,14 +105,14 @@ export default function MembershipStatusReport() {
   }
 
   useEffect(() => {
-    // Set default date range to current month
+    // Set default date range: 1st day of current month to today
     const now = new Date()
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const today = new Date()
     
     setDateRange({
-      start: firstDay.toISOString().split('T')[0],
-      end: lastDay.toISOString().split('T')[0]
+      start: firstDayOfMonth.toISOString().split('T')[0],
+      end: today.toISOString().split('T')[0]
     })
     
     loadMemberships()
@@ -174,6 +179,7 @@ export default function MembershipStatusReport() {
           continue
         }
         
+        
         membershipData.push({
           id: docSnapshot.id,
           uid: data.uid,
@@ -181,14 +187,18 @@ export default function MembershipStatusReport() {
           email: userData.email || 'unknown@email.com',
           memberId: userData.memberId || '',
           phone: userData.phone || '',
+          gender: userData.gender || '',
           profileImageUrl: userData.profileImageUrl,
           membershipPlan: data.planType,
           membershipAmount: data.amount,
-          totalAmount: data.amount,
+          totalAmount: data.totalAmount || data.amount,
           registrationFee: data.registrationFee || false,
+          customRegistrationFee: data.customRegistrationFee || 0,
+          discount: data.discount || false,
+          discountAmount: data.discountAmount || 0,
           membershipStatus: data.status,
-          membershipExpiryDate: data.endDate?.toDate?.() || new Date(data.endDate),
-          membershipStartDate: data.startDate?.toDate?.() || new Date(data.startDate),
+          membershipExpiryDate: data.endDate?.toDate?.() || (data.endDate ? new Date(data.endDate) : null),
+          membershipStartDate: data.startDate?.toDate?.() || (data.startDate ? new Date(data.startDate) : null),
           createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
           isVisitor: data.isVisitor || false,
           renewalCount: data.renewalCount || 0,
@@ -213,6 +223,7 @@ export default function MembershipStatusReport() {
           continue
         }
         
+        
         // Add historical membership data from payment records
         membershipData.push({
           id: `payment_${docSnapshot.id}`,
@@ -221,14 +232,18 @@ export default function MembershipStatusReport() {
           email: userData.email || 'unknown@email.com',
           memberId: userData.memberId || '',
           phone: userData.phone || '',
+          gender: userData.gender || '',
           profileImageUrl: userData.profileImageUrl,
           membershipPlan: data.planType || 'No Plan',
           membershipAmount: data.amount || 0,
-          totalAmount: data.amount || 0,
+          totalAmount: data.totalAmount || data.amount || 0,
           registrationFee: data.registrationFee || false,
+          customRegistrationFee: data.customRegistrationFee || 0,
+          discount: data.discount || false,
+          discountAmount: data.discountAmount || 0,
           membershipStatus: 'expired', // Historical data is expired
-          membershipExpiryDate: data.membershipEndDate?.toDate?.() || data.membershipEndDate,
-          membershipStartDate: data.membershipStartDate?.toDate?.() || data.membershipStartDate,
+          membershipExpiryDate: data.membershipEndDate?.toDate?.() || (data.membershipEndDate ? new Date(data.membershipEndDate) : null),
+          membershipStartDate: data.membershipStartDate?.toDate?.() || (data.membershipStartDate ? new Date(data.membershipStartDate) : null),
           createdAt: data.createdAt?.toDate?.() || new Date(data.createdAt),
           isVisitor: false,
           renewalCount: 0,
@@ -241,6 +256,7 @@ export default function MembershipStatusReport() {
       
       setMemberships(membershipData)
       console.log(`✅ Loaded ${membershipData.length} memberships (current + historical)`)
+      
     } catch (error) {
       console.error('Error loading memberships:', error)
       toast.error('Failed to load membership data')
@@ -250,30 +266,36 @@ export default function MembershipStatusReport() {
   }
 
   const applyFilters = useCallback(() => {
-    let filtered = [...memberships]
+    setFilterLoading(true)
+    
+    // Use setTimeout to show loading state briefly for better UX
+    setTimeout(() => {
+      let filtered = [...memberships]
 
-    // Apply historical data filter
-    if (!showHistorical) {
-      filtered = filtered.filter(m => !m.isHistorical)
-    }
+      // Apply historical data filter
+      if (!showHistorical) {
+        filtered = filtered.filter(m => !m.isHistorical)
+      }
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(m => m.membershipStatus === statusFilter)
-    }
+      // Apply status filter
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter(m => m.membershipStatus === statusFilter)
+      }
 
-    // Apply date range filter
-    if (dateRange.start) {
-      const startDate = new Date(dateRange.start)
-      filtered = filtered.filter(m => m.createdAt >= startDate)
-    }
-    if (dateRange.end) {
-      const endDate = new Date(dateRange.end)
-      endDate.setHours(23, 59, 59, 999) // End of day
-      filtered = filtered.filter(m => m.createdAt <= endDate)
-    }
+      // Apply date range filter
+      if (dateRange.start) {
+        const startDate = new Date(dateRange.start)
+        filtered = filtered.filter(m => m.createdAt >= startDate)
+      }
+      if (dateRange.end) {
+        const endDate = new Date(dateRange.end)
+        endDate.setHours(23, 59, 59, 999) // End of day
+        filtered = filtered.filter(m => m.createdAt <= endDate)
+      }
 
-    setFilteredMemberships(filtered)
+      setFilteredMemberships(filtered)
+      setFilterLoading(false)
+    }, 100) // Brief loading state for better UX
   }, [memberships, showHistorical, statusFilter, dateRange])
 
   const getStatusStats = () => {
@@ -300,7 +322,24 @@ export default function MembershipStatusReport() {
   }
 
   const formatCurrency = (amount: number) => {
-    return `PKR ${amount.toLocaleString()}`
+    return `Rs. ${amount.toLocaleString()}`
+  }
+
+  const getBasePlanFee = (planType: string | undefined) => {
+    if (!planType) return 0
+    
+    switch (planType.toLowerCase()) {
+      case 'strength training':
+        return 5000
+      case 'cardio':
+        return 5000
+      case 'cardio training':
+        return 5000
+      case 'strength + cardio':
+        return 7500
+      default:
+        return 0
+    }
   }
 
   const getRevenueTrendData = () => {
@@ -457,20 +496,29 @@ export default function MembershipStatusReport() {
 
     switch (preset) {
       case 'current':
+        // This Month: 1st day of current month to today
         startDate = new Date(now.getFullYear(), now.getMonth(), 1)
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+        endDate = new Date() // Today
         break
       case 'previous':
+        // Previous Month: 1st day of previous month to last day of previous month
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
         endDate = new Date(now.getFullYear(), now.getMonth(), 0)
         break
+      case 'last7days':
+        // Last 7 days: 7 days ago to today
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        endDate = new Date()
+        break
       case 'quarter':
+        // Last 3 months: 3 months ago to today
         startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1)
-        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+        endDate = new Date()
         break
       case 'year':
+        // This Year: 1st day of current year to today
         startDate = new Date(now.getFullYear(), 0, 1)
-        endDate = new Date(now.getFullYear(), 11, 31)
+        endDate = new Date()
         break
       case 'all':
         setDateRange({ start: '', end: '' })
@@ -486,32 +534,40 @@ export default function MembershipStatusReport() {
   }
 
   const exportToCSV = () => {
-    const headers = ['Name', 'Email', 'Member ID', 'Plan Type', 'Registration Fee', 'Start Date', 'End Date', 'Status', 'Data Type', 'Created At']
+    const headers = ['Member ID', 'Name', 'Email', 'Plan', 'Plan Fee', 'Registration Fee', 'Discount', 'Total Amount']
+    
     const csvContent = [
       headers.join(','),
       ...filteredMemberships.map(m => [
+        m.memberId || '',
         m.name,
         m.email,
-        m.memberId || '',
         m.membershipPlan || 'No Plan',
-        m.totalAmount || 0,
-        m.membershipStartDate?.toLocaleDateString() || '',
-        m.membershipExpiryDate?.toLocaleDateString() || '',
-        m.membershipStatus || 'pending',
-        m.isHistorical ? 'Historical' : 'Current',
-        m.createdAt.toLocaleDateString()
+        getBasePlanFee(m.membershipPlan),
+        m.registrationFee && m.customRegistrationFee ? m.customRegistrationFee : 0,
+        m.discount && m.discountAmount ? m.discountAmount : 0,
+        m.totalAmount || 0
       ].join(','))
     ].join('\n')
+
+    // Generate filename with date range and timestamp
+    const now = new Date()
+    const timestamp = now.toISOString().split('T')[0] // YYYY-MM-DD format
+    const startDate = dateRange.start ? dateRange.start.replace(/-/g, '') : 'all'
+    const endDate = dateRange.end ? dateRange.end.replace(/-/g, '') : 'all'
+    const filename = `membership-status-report_${startDate}_to_${endDate}_${timestamp}.csv`
 
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'membership-status-report-' + new Date().toISOString().split('T')[0] + '.csv'
+    a.download = filename
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
     window.URL.revokeObjectURL(url)
     
-    toast.success('CSV exported successfully')
+    toast.success(`Report exported successfully! (${filteredMemberships.length} records)`)
   }
 
   const stats = getStatusStats()
@@ -595,6 +651,18 @@ export default function MembershipStatusReport() {
                       }`}
                     >
                       This Month
+                    </Button>
+                    <Button
+                      variant={activePreset === 'last7days' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDateRangePreset('last7days')}
+                      className={`${
+                        activePreset === 'last7days' 
+                          ? 'bg-orange-600 hover:bg-orange-700 text-white' 
+                          : 'border-orange-500/50 text-orange-400 hover:bg-orange-100 hover:border-orange-400 hover:text-orange-600 hover:scale-105 transition-all duration-200 bg-white'
+                      }`}
+                    >
+                      Last 7 Days
                     </Button>
                     <Button
                       variant={activePreset === 'previous' ? "default" : "outline"}
@@ -829,7 +897,7 @@ export default function MembershipStatusReport() {
                         fontSize={12}
                         tickLine={false}
                         axisLine={false}
-                        tickFormatter={(value) => `PKR ${value.toLocaleString()}`}
+                        tickFormatter={(value) => `Rs. ${value.toLocaleString()}`}
                       />
                       <Tooltip 
                         contentStyle={{
@@ -849,7 +917,7 @@ export default function MembershipStatusReport() {
                           fontWeight: '600',
                           marginBottom: '4px'
                         }}
-                        formatter={(value: any) => [`PKR ${value.toLocaleString()}`, 'Revenue']}
+                        formatter={(value: any) => [`Rs. ${value.toLocaleString()}`, 'Revenue']}
                       />
                       <Line 
                         type="monotone" 
@@ -1001,16 +1069,27 @@ export default function MembershipStatusReport() {
                   <thead>
                     <tr className="border-b border-gray-700">
                       <th className="text-left p-3 text-gray-300 font-medium">Member</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Member ID</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Status</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Plan</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Amount</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Expiry</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Time Remaining</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Member ID</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Plan</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Plan Fee</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Registration Fee</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Discount</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Total Amount</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Expiry</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Time Remaining</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMemberships.slice(0, 20).map((membership) => {
+                    {filterLoading ? (
+                      <tr>
+                        <td colSpan={8} className="p-8 text-center">
+                          <div className="flex items-center justify-center space-x-2">
+                            <RefreshCw className="h-4 w-4 animate-spin text-orange-500" />
+                            <span className="text-gray-400">Applying filters...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filteredMemberships.slice(0, 20).map((membership) => {
                       const realTimeStatus = getRealTimeStatus(membership.membershipExpiryDate, membership.isVisitor)
                       
                       return (
@@ -1040,15 +1119,14 @@ export default function MembershipStatusReport() {
                           </div>
                         </td>
                         <td className="p-3">
-                          <span className="text-gray-300 font-mono">
-                            {membership.memberId || 'N/A'}
-                          </span>
+                          <div className="text-gray-300 text-center">
+                            <span className="font-mono">
+                              {membership.memberId || 'N/A'}
+                            </span>
+                          </div>
                         </td>
                         <td className="p-3">
-                          {getMembershipStatusBadge(membership.membershipStatus || 'pending', membership.membershipExpiryDate, membership.isVisitor)}
-                        </td>
-                        <td className="p-3">
-                          <div className="text-gray-300">
+                          <div className="text-gray-300 text-center">
                             {membership.membershipPlan ? (
                               <span className="text-sm font-medium">
                                 {membership.membershipPlan}
@@ -1061,25 +1139,56 @@ export default function MembershipStatusReport() {
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-gray-300">
-                            {membership.totalAmount ? (
-                              <div className="flex items-center space-x-2">
-                                <span className="text-sm font-medium">
-                                  PKR {membership.totalAmount.toLocaleString()}
+                          <div className="text-gray-300 text-center">
+                            {(() => {
+                              const basePlanFee = getBasePlanFee(membership.membershipPlan)
+                              return basePlanFee > 0 ? (
+                                <span className="text-sm font-medium text-orange-400">
+                                  Rs. {basePlanFee.toLocaleString()}
                                 </span>
-                                {membership.registrationFee && (
-                                  <Badge className="bg-blue-600 text-xs">+Reg Fee</Badge>
-                                )}
-                              </div>
+                              ) : (
+                                <span className="text-gray-500 text-sm">-</span>
+                              )
+                            })()}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-gray-300 text-center">
+                            {membership.registrationFee && membership.customRegistrationFee ? (
+                              <span className="text-sm font-medium text-blue-400">
+                                Rs. {membership.customRegistrationFee.toLocaleString()}
+                              </span>
                             ) : (
                               <span className="text-gray-500 text-sm">-</span>
                             )}
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-gray-300">
+                          <div className="text-gray-300 text-center">
+                            {membership.discount && membership.discountAmount && membership.discountAmount > 0 ? (
+                              <span className="text-sm font-medium text-green-400">
+                                Rs. {membership.discountAmount.toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-gray-500 text-sm">-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-gray-300 text-center">
+                            {membership.totalAmount !== undefined && membership.totalAmount !== null ? (
+                              <span className="text-sm font-medium text-white">
+                                Rs. {membership.totalAmount.toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-gray-500 text-sm">-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-gray-300 text-center">
                             {membership.membershipExpiryDate ? (
-                              <div className="flex items-center space-x-1">
+                              <div className="flex items-center justify-center space-x-1">
                                 <Calendar className="h-3 w-3" />
                                 <span className="text-sm">
                                   {membership.membershipExpiryDate.toLocaleDateString()}
@@ -1091,7 +1200,7 @@ export default function MembershipStatusReport() {
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-gray-300">
+                          <div className="text-gray-300 text-center">
                             {membership.isVisitor ? (
                               membership.membershipExpiryDate ? (
                                 realTimeStatus.status === 'active' ? (
@@ -1141,7 +1250,7 @@ export default function MembershipStatusReport() {
                                 </span>
                               ) : realTimeStatus.status === 'expired' ? (
                                 <span className="text-red-400 text-sm font-medium">
-                                  {realTimeStatus.daysSinceExpiry} days ago
+                                  Expired
                                 </span>
                               ) : (
                                 <span className="text-gray-500 text-sm">-</span>

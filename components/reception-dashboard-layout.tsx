@@ -23,7 +23,8 @@ import {
   Home,
   Database,
   CheckCircle,
-  Clock
+  Clock,
+  Banknote
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getProfileImageUrl } from '@/lib/cloudinary-client'
@@ -58,6 +59,11 @@ export default function ReceptionDashboardLayout({ children }: ReceptionDashboar
       name: 'Attendance',
       href: '/reception/dashboard/attendance',
       icon: Calendar
+    },
+    {
+      name: 'Expenses',
+      href: '/reception/dashboard/expenses',
+      icon: Banknote
     },
     {
       name: 'Settings',

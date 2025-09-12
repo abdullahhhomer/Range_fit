@@ -14,6 +14,9 @@ export interface OptimizedMembershipPlan {
   createdAt: Date
   updatedAt: Date
   registrationFee?: boolean
+  customRegistrationFee?: number
+  discount?: boolean
+  discountAmount?: number
   totalAmount?: number
   renewalCount?: number
   lastRenewalDate?: Date
@@ -42,6 +45,11 @@ export interface OptimizedPaymentRecord {
   paymentYear: number
   paymentMonthName: string
   paymentQuarter: string
+  // Registration fee and discount fields
+  registrationFee?: boolean
+  customRegistrationFee?: number
+  discount?: boolean
+  discountAmount?: number
 }
 
 // Update existing membership instead of creating new one
@@ -90,14 +98,23 @@ export const updateExistingMembership = async (uid: string, newData: Partial<Opt
       await updateDoc(membershipDocRef, updateData)
       
       // Also update the user document to keep it in sync
-      await updateUserDocument(uid, {
+      const userUpdateData: any = {
         membershipStatus: "active",
         membershipPlan: newData.planType,
         membershipAmount: newData.amount,
         membershipStartDate: newStartDate,
         membershipExpiryDate: newEndDate,
         lastRenewalReminder: now
-      })
+      }
+
+      // Only add defined values to avoid Firebase errors
+      if (newData.registrationFee !== undefined) userUpdateData.registrationFee = newData.registrationFee
+      if (newData.customRegistrationFee !== undefined) userUpdateData.customRegistrationFee = newData.customRegistrationFee
+      if (newData.discount !== undefined) userUpdateData.discount = newData.discount
+      if (newData.discountAmount !== undefined) userUpdateData.discountAmount = newData.discountAmount
+      if (newData.totalAmount !== undefined) userUpdateData.totalAmount = newData.totalAmount
+
+      await updateUserDocument(uid, userUpdateData)
       
       console.log(`✅ Existing membership updated for user ${uid}`)
       return membershipDocRef

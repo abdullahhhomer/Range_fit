@@ -32,6 +32,12 @@ export const generateReceiptPDF = (receipt: ReceiptData): string => {
     return `Rs. ${amount.toLocaleString()}`
   }
 
+  // Calculate correct values for display
+  const registrationFeeAmount = receipt.registrationFee ? (receipt.customRegistrationFee || 5000) : 0
+  const discountAmount = receipt.discount ? (receipt.discountAmount || 0) : 0
+  const calculatedPlanFee = receipt.planMembershipFee || receipt.amount
+  const calculatedTotal = receipt.totalAmount || receipt.amount
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -194,25 +200,33 @@ export const generateReceiptPDF = (receipt: ReceiptData): string => {
              </div>
            </div>
           
-          <div class="amount-section">
-            <div class="amount-label">Total Amount Paid</div>
-            <div class="amount-value">${formatCurrency(receipt.amount)}</div>
-          </div>
-          
           <div class="info-section">
             <h3>Payment Summary</h3>
             <div class="info-row">
-              <span class="info-label">Membership Fee:</span>
-              <span class="info-value">${formatCurrency(receipt.amount)}</span>
+              <span class="info-label">Plan Membership Fee:</span>
+              <span class="info-value">${formatCurrency(calculatedPlanFee)}</span>
             </div>
+            ${registrationFeeAmount > 0 ? `
             <div class="info-row">
-              <span class="info-label">Tax:</span>
-              <span class="info-value">Rs. 0</span>
+              <span class="info-label">Registration Fee:</span>
+              <span class="info-value">${formatCurrency(registrationFeeAmount)}</span>
             </div>
+            ` : ''}
+            ${discountAmount > 0 ? `
+            <div class="info-row">
+              <span class="info-label">Discount:</span>
+              <span class="info-value" style="color: #10b981;">- ${formatCurrency(discountAmount)}</span>
+            </div>
+            ` : ''}
             <div class="info-row" style="border-top: 2px solid #ff6b35; padding-top: 10px; font-weight: bold;">
-              <span class="info-label">Total:</span>
-              <span class="info-value">${formatCurrency(receipt.amount)}</span>
+              <span class="info-label">Total Amount:</span>
+              <span class="info-value">${formatCurrency(calculatedTotal)}</span>
             </div>
+          </div>
+          
+          <div class="amount-section">
+            <div class="amount-label">Total Amount Paid</div>
+            <div class="amount-value">${formatCurrency(calculatedTotal)}</div>
           </div>
         </div>
         
@@ -224,7 +238,7 @@ export const generateReceiptPDF = (receipt: ReceiptData): string => {
           <div class="gym-details">
             <strong>RangeFit Gym</strong><br>
             Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan<br>
-            Phone: ${receipt.gymPhone} | Email: ${receipt.gymEmail}<br>
+            Phone: ${receipt.gymPhone}<br>
             Generated on: ${formatDate(receipt.createdAt)}
           </div>
         </div>
@@ -315,6 +329,12 @@ export const downloadReceiptPDF = async (receipt: ReceiptData) => {
 // Alternative: Generate PDF using browser print functionality (simplified)
 export const printReceipt = (receipt: ReceiptData) => {
   try {
+    // Calculate correct values for display
+    const registrationFeeAmount = receipt.registrationFee ? (receipt.customRegistrationFee || 5000) : 0
+    const discountAmount = receipt.discount ? (receipt.discountAmount || 0) : 0
+    const calculatedPlanFee = receipt.planMembershipFee || receipt.amount
+    const calculatedTotal = receipt.totalAmount || receipt.amount
+    
     // Create a simple HTML for printing without complex CSS
     const html = `
       <!DOCTYPE html>
@@ -464,13 +484,37 @@ export const printReceipt = (receipt: ReceiptData) => {
           
           <div class="amount-section">
             <div class="amount-label">Total Amount Paid</div>
-            <div class="amount-value">Rs. ${receipt.amount.toLocaleString()}</div>
+            <div class="amount-value">Rs. ${calculatedTotal.toLocaleString()}</div>
+          </div>
+          
+          <div class="info-section">
+            <h3>Payment Summary</h3>
+            <div class="info-row">
+              <span class="info-label">Plan Membership Fee:</span>
+              <span class="info-value">Rs. ${calculatedPlanFee.toLocaleString()}</span>
+            </div>
+            ${registrationFeeAmount > 0 ? `
+            <div class="info-row">
+              <span class="info-label">Registration Fee:</span>
+              <span class="info-value">Rs. ${registrationFeeAmount.toLocaleString()}</span>
+            </div>
+            ` : ''}
+            ${discountAmount > 0 ? `
+            <div class="info-row">
+              <span class="info-label">Discount:</span>
+              <span class="info-value" style="color: #10b981;">- Rs. ${discountAmount.toLocaleString()}</span>
+            </div>
+            ` : ''}
+            <div class="info-row" style="border-top: 2px solid #ff6b35; padding-top: 10px; font-weight: bold;">
+              <span class="info-label">Total Amount:</span>
+              <span class="info-value">Rs. ${calculatedTotal.toLocaleString()}</span>
+            </div>
           </div>
           
           <div class="footer">
             <div>Thank you for choosing RangeFit Gym!</div>
             <div>Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan</div>
-            <div>Phone: ${receipt.gymPhone} | Email: ${receipt.gymEmail}</div>
+            <div>Phone: ${receipt.gymPhone}</div>
             <div>Generated on: ${formatDate(receipt.createdAt)}</div>
           </div>
         </div>
@@ -543,22 +587,41 @@ export const downloadReceiptPDFSimple = async (receipt: ReceiptData) => {
     pdf.text(`End Date: ${formatDate(receipt.endDate)}`, 20, 185)
     pdf.text(`Payment Method: ${receipt.paymentMethod}`, 20, 195)
     
-    // Amount section
+    // Payment breakdown section
+    pdf.setFontSize(14)
+    pdf.text('Payment Breakdown:', 20, 205)
+    pdf.setFontSize(12)
+    pdf.text(`Plan Membership Fee: Rs. ${(receipt.planMembershipFee || receipt.amount).toLocaleString()}`, 20, 215)
+    
+    let yPosition = 225
+    if (receipt.registrationFee && receipt.customRegistrationFee && receipt.customRegistrationFee > 0) {
+      pdf.text(`Registration Fee: Rs. ${receipt.customRegistrationFee.toLocaleString()}`, 20, yPosition)
+      yPosition += 10
+    }
+    
+    if (receipt.discount && receipt.discountAmount && receipt.discountAmount > 0) {
+      pdf.setTextColor(16, 185, 129) // Green color for discount
+      pdf.text(`Discount: - Rs. ${receipt.discountAmount.toLocaleString()}`, 20, yPosition)
+      pdf.setTextColor(0, 0, 0) // Reset to black
+      yPosition += 10
+    }
+    
+    // Total amount section
     pdf.setFillColor(248, 249, 250) // Light gray background
-    pdf.rect(15, 205, 180, 25, 'F')
+    pdf.rect(15, yPosition - 5, 180, 25, 'F')
     pdf.setFontSize(16)
-    pdf.text('Total Amount Paid:', 20, 215)
+    pdf.text('Total Amount Paid:', 20, yPosition + 5)
     pdf.setFontSize(20)
     pdf.setTextColor(255, 107, 53) // Orange color
-    pdf.text(`Rs. ${receipt.amount.toLocaleString()}`, 20, 225)
+    pdf.text(`Rs. ${(receipt.totalAmount || receipt.amount).toLocaleString()}`, 20, yPosition + 15)
     
     // Footer
     pdf.setTextColor(0, 0, 0)
     pdf.setFontSize(10)
-    pdf.text('Thank you for choosing RangeFit Gym!', 105, 250, { align: 'center' })
-    pdf.text('Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan', 105, 255, { align: 'center' })
-    pdf.text(`Phone: ${receipt.gymPhone} | Email: ${receipt.gymEmail}`, 105, 260, { align: 'center' })
-    pdf.text(`Generated on: ${formatDate(receipt.createdAt)}`, 105, 265, { align: 'center' })
+    pdf.text('Thank you for choosing RangeFit Gym!', 105, yPosition + 40, { align: 'center' })
+    pdf.text('Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan', 105, yPosition + 45, { align: 'center' })
+    pdf.text(`Phone: ${receipt.gymPhone}`, 105, yPosition + 50, { align: 'center' })
+    pdf.text(`Generated on: ${formatDate(receipt.createdAt)}`, 105, yPosition + 55, { align: 'center' })
     
     // Download the PDF
     pdf.save(`receipt-${receipt.receiptNumber}.pdf`)

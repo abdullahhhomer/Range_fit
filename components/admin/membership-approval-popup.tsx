@@ -27,6 +27,9 @@ interface MembershipRequest {
   endDate?: Date
   createdAt: Date | Timestamp
   registrationFee?: boolean
+  customRegistrationFee?: number
+  discount?: boolean
+  discountAmount?: number
   userData?: any
 }
 
@@ -51,6 +54,17 @@ export default function MembershipApprovalPopup({
   const [isRejecting, setIsRejecting] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
   const [approvalRegistrationFee, setApprovalRegistrationFee] = useState(false)
+  const [approvalCustomRegistrationFee, setApprovalCustomRegistrationFee] = useState(5000)
+  const [approvalDiscount, setApprovalDiscount] = useState(false)
+  const [approvalDiscountAmount, setApprovalDiscountAmount] = useState(0)
+
+  // Reset form when popup opens
+  React.useEffect(() => {
+    setApprovalRegistrationFee(false)
+    setApprovalCustomRegistrationFee(5000)
+    setApprovalDiscount(false)
+    setApprovalDiscountAmount(0)
+  }, [request])
 
   // Function to format phone number with space after 4 digits
   const formatPhoneNumber = (value: string) => {
@@ -64,15 +78,66 @@ export default function MembershipApprovalPopup({
     return limitedDigits
   }
 
+  // Calculate total amount with custom registration fee and discount
+  const calculateTotalAmount = () => {
+    if (!request) return 0
+    const baseAmount = request.amount || 0
+    const registrationFeeAmount = approvalRegistrationFee ? approvalCustomRegistrationFee : 0
+    const discountAmount = approvalDiscount ? approvalDiscountAmount : 0
+    // Total = Base Amount + Registration Fee - Discount
+    return Math.max(0, baseAmount + registrationFeeAmount - discountAmount)
+  }
+
+  // Calculate plan membership fee (base amount before registration fee and discount)
+  const calculatePlanMembershipFee = () => {
+    if (!request) return 0
+    // The plan membership fee is simply the base amount from the request
+    return request.amount || 0
+  }
+
+  // Handle custom registration fee change
+  const handleCustomRegistrationFeeChange = (amount: number) => {
+    setApprovalCustomRegistrationFee(amount)
+  }
+
+  // Handle discount change
+  const handleDiscountChange = (includeDiscount: boolean) => {
+    setApprovalDiscount(includeDiscount)
+    if (!includeDiscount) {
+      setApprovalDiscountAmount(0)
+    }
+  }
+
+  // Handle discount amount change
+  const handleDiscountAmountChange = (amount: number) => {
+    setApprovalDiscountAmount(amount)
+  }
+
   // Handle membership approval
   const handleApproveMembership = async () => {
     if (!request || !currentUserId) return
 
     setIsApproving(true)
     try {
-      // Calculate total amount including registration fee if checked
-      const baseAmount = request.amount || 0
-      const totalAmount = approvalRegistrationFee ? baseAmount + REGISTRATION_FEE : baseAmount
+      // Validate discount amount
+      if (approvalDiscount) {
+        const baseAmount = request.amount || 0
+        const registrationFeeAmount = approvalRegistrationFee ? approvalCustomRegistrationFee : 0
+        const totalFees = baseAmount + registrationFeeAmount
+        if (approvalDiscountAmount > totalFees) {
+          toast.error('Discount amount cannot exceed the total fees (membership + registration fee)')
+          setIsApproving(false)
+          return
+        }
+        if (approvalDiscountAmount < 0) {
+          toast.error('Discount amount cannot be negative')
+          setIsApproving(false)
+          return
+        }
+      }
+      
+      // Calculate total amount using custom amounts
+      const totalAmount = calculateTotalAmount()
       
       // Set start date as current date when approved
       const startDate = new Date()
@@ -81,6 +146,9 @@ export default function MembershipApprovalPopup({
       
       await updateMembershipStatus(request.id, "active", currentUserId, undefined, {
         registrationFee: approvalRegistrationFee,
+        customRegistrationFee: approvalCustomRegistrationFee,
+        discount: approvalDiscount,
+        discountAmount: approvalDiscountAmount,
         totalAmount: totalAmount,
         status: "active", // Ensure status is set to active
         startDate: startDate,
@@ -322,21 +390,43 @@ export default function MembershipApprovalPopup({
               </div>
               
               {/* Registration Fee Checkbox */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 py-3 border-t border-gray-600">
-                <input
-                  type="checkbox"
-                  id="approvalRegistrationFee"
-                  checked={approvalRegistrationFee}
-                  onChange={(e) => setApprovalRegistrationFee(e.target.checked)}
-                  className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2"
-                />
-                <div className="flex-1">
-                  <label htmlFor="approvalRegistrationFee" className="text-white font-medium cursor-pointer text-sm sm:text-base">
-                    Include Registration Fee
-                  </label>
-                  <p className="text-gray-400 text-xs sm:text-sm">One-time registration fee of Rs. {REGISTRATION_FEE.toLocaleString()}</p>
+              <div className="space-y-4 py-3 border-t border-gray-600">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                  <input
+                    type="checkbox"
+                    id="approvalRegistrationFee"
+                    checked={approvalRegistrationFee}
+                    onChange={(e) => setApprovalRegistrationFee(e.target.checked)}
+                    className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="approvalRegistrationFee" className="text-white font-medium cursor-pointer text-sm sm:text-base">
+                      Include Registration Fee
+                    </label>
+                    <p className="text-gray-400 text-xs sm:text-sm">One-time registration fee</p>
+                  </div>
+                  <span className="text-white font-semibold text-base sm:text-lg">Rs. {approvalCustomRegistrationFee.toLocaleString()}</span>
                 </div>
-                <span className="text-white font-semibold text-base sm:text-lg">Rs. {REGISTRATION_FEE.toLocaleString()}</span>
+                
+                {/* Custom Registration Fee Input */}
+                {approvalRegistrationFee && (
+                  <div className="ml-8">
+                    <label className="text-gray-300 text-sm font-medium mb-2 block">Registration Fee Amount</label>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-gray-400 text-sm">Rs.</span>
+                      <input
+                        type="number"
+                        value={approvalCustomRegistrationFee}
+                        onChange={(e) => handleCustomRegistrationFeeChange(Number(e.target.value))}
+                        min="0"
+                        step="100"
+                        className="w-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:ring-orange-500 focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="5000"
+                      />
+                      <span className="text-gray-400 text-xs">(Default: Rs. 5,000)</span>
+                    </div>
+                  </div>
+                )}
               </div>
               
               {request.registrationFee && (
@@ -345,14 +435,86 @@ export default function MembershipApprovalPopup({
                   <span className="text-white font-semibold text-lg">Rs. 5,000</span>
                 </div>
               )}
+              
+              {/* Discount Section */}
+              <div className="space-y-4 py-3 border-t border-gray-600">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                  <input
+                    type="checkbox"
+                    id="approvalDiscount"
+                    checked={approvalDiscount}
+                    onChange={(e) => handleDiscountChange(e.target.checked)}
+                    className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500 focus:ring-2"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="approvalDiscount" className="text-white font-medium cursor-pointer text-sm sm:text-base">
+                      Apply Discount
+                    </label>
+                    <p className="text-gray-400 text-xs sm:text-sm">Apply discount to membership fees</p>
+                  </div>
+                  <span className="text-green-400 font-semibold text-base sm:text-lg">- Rs. {approvalDiscountAmount.toLocaleString()}</span>
+                </div>
+                
+                {/* Custom Discount Input */}
+                {approvalDiscount && (
+                  <div className="ml-8">
+                    <label className="text-gray-300 text-sm font-medium mb-2 block">Discount Amount</label>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-gray-400 text-sm">Rs.</span>
+                      <input
+                        type="number"
+                        value={approvalDiscountAmount}
+                        onChange={(e) => handleDiscountAmountChange(Number(e.target.value))}
+                        min="0"
+                        step="100"
+                        max={(request.amount || 0) + (approvalRegistrationFee ? approvalCustomRegistrationFee : 0)}
+                        className="w-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:ring-green-500 focus:border-green-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="0"
+                      />
+                      <span className="text-gray-400 text-xs">
+                        (Max: Rs. {((request.amount || 0) + (approvalRegistrationFee ? approvalCustomRegistrationFee : 0)).toLocaleString()})
+                      </span>
+                    </div>
+                    {approvalDiscountAmount > ((request.amount || 0) + (approvalRegistrationFee ? approvalCustomRegistrationFee : 0)) && (
+                      <p className="text-red-400 text-xs mt-1">Discount cannot exceed total fees</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              
               <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-orange-400 font-bold text-lg sm:text-xl">Total Amount</span>
-                  <span className="text-orange-400 font-bold text-xl sm:text-2xl">
-                    Rs. {approvalRegistrationFee ? 
-                      ((request.amount || 0) + REGISTRATION_FEE).toLocaleString() : 
-                      request.amount?.toLocaleString()}
-                  </span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 text-base sm:text-lg">Plan Membership Fee</span>
+                    <span className="text-white font-semibold text-base sm:text-lg">
+                      Rs. {calculatePlanMembershipFee().toLocaleString()}
+                    </span>
+                  </div>
+                  
+                  {approvalRegistrationFee && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-base sm:text-lg">Registration Fee</span>
+                      <span className="text-white font-semibold text-base sm:text-lg">
+                        Rs. {approvalCustomRegistrationFee.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {approvalDiscount && approvalDiscountAmount > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-400 text-base sm:text-lg">Discount</span>
+                      <span className="text-green-400 font-semibold text-base sm:text-lg">
+                        - Rs. {approvalDiscountAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-500">
+                    <span className="text-orange-400 font-bold text-lg sm:text-xl">Total Amount</span>
+                    <span className="text-orange-400 font-bold text-xl sm:text-2xl">
+                      Rs. {calculateTotalAmount().toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

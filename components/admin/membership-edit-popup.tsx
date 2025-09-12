@@ -29,6 +29,9 @@ interface MembershipData {
   membershipAmount?: number
   membershipStartDate?: Date
   registrationFee?: boolean
+  customRegistrationFee?: number
+  discount?: boolean
+  discountAmount?: number
   totalAmount?: number
   isVisitor?: boolean
   visitorName?: string
@@ -99,6 +102,9 @@ export default function MembershipEditPopup({
     membershipPlan: '',
     membershipAmount: 0,
     registrationFee: false,
+    customRegistrationFee: 5000,
+    discount: false,
+    discountAmount: 0,
     totalAmount: 0
   })
 
@@ -109,12 +115,15 @@ export default function MembershipEditPopup({
       const defaultPlan = membership.membershipPlan || ''
       const selectedPlan = MEMBERSHIP_PLANS.find(plan => plan.id === defaultPlan)
       const defaultAmount = selectedPlan ? selectedPlan.price : 0
-      const defaultTotal = (membership.registrationFee || false) ? defaultAmount + REGISTRATION_FEE : defaultAmount
+      const defaultTotal = defaultAmount // Start with unchecked registration fee
       
       setEditFormData({
         membershipPlan: defaultPlan,
         membershipAmount: membership.membershipAmount || defaultAmount,
-        registrationFee: membership.registrationFee || false,
+        registrationFee: false, // Always start unchecked
+        customRegistrationFee: 5000,
+        discount: false, // Always start unchecked
+        discountAmount: 0,
         totalAmount: membership.totalAmount || defaultTotal
       })
     }
@@ -124,7 +133,10 @@ export default function MembershipEditPopup({
     const selectedPlan = MEMBERSHIP_PLANS.find(plan => plan.id === planId)
     if (selectedPlan) {
       const newAmount = selectedPlan.price
-      const newTotal = editFormData.registrationFee ? newAmount + REGISTRATION_FEE : newAmount
+      const registrationFeeAmount = editFormData.registrationFee ? editFormData.customRegistrationFee : 0
+      const subtotal = newAmount + registrationFeeAmount
+      const discountAmount = editFormData.discount ? editFormData.discountAmount : 0
+      const newTotal = Math.max(0, subtotal - discountAmount) // Ensure total doesn't go below 0
       setEditFormData({
         ...editFormData,
         membershipPlan: planId,
@@ -135,10 +147,49 @@ export default function MembershipEditPopup({
   }
 
   const handleRegistrationFeeChange = (includeFee: boolean) => {
-    const newTotal = includeFee ? editFormData.membershipAmount + REGISTRATION_FEE : editFormData.membershipAmount
+    const registrationFeeAmount = includeFee ? editFormData.customRegistrationFee : 0
+    const subtotal = editFormData.membershipAmount + registrationFeeAmount
+    const discountAmount = editFormData.discount ? editFormData.discountAmount : 0
+    const newTotal = Math.max(0, subtotal - discountAmount)
     setEditFormData({
       ...editFormData,
       registrationFee: includeFee,
+      totalAmount: newTotal
+    })
+  }
+
+  const handleCustomRegistrationFeeChange = (amount: number) => {
+    const registrationFeeAmount = editFormData.registrationFee ? amount : 0
+    const subtotal = editFormData.membershipAmount + registrationFeeAmount
+    const discountAmount = editFormData.discount ? editFormData.discountAmount : 0
+    const newTotal = Math.max(0, subtotal - discountAmount)
+    setEditFormData({
+      ...editFormData,
+      customRegistrationFee: amount,
+      totalAmount: newTotal
+    })
+  }
+
+  const handleDiscountChange = (includeDiscount: boolean) => {
+    const registrationFeeAmount = editFormData.registrationFee ? editFormData.customRegistrationFee : 0
+    const subtotal = editFormData.membershipAmount + registrationFeeAmount
+    const discountAmount = includeDiscount ? editFormData.discountAmount : 0
+    const newTotal = Math.max(0, subtotal - discountAmount)
+    setEditFormData({
+      ...editFormData,
+      discount: includeDiscount,
+      totalAmount: newTotal
+    })
+  }
+
+  const handleDiscountAmountChange = (amount: number) => {
+    const registrationFeeAmount = editFormData.registrationFee ? editFormData.customRegistrationFee : 0
+    const subtotal = editFormData.membershipAmount + registrationFeeAmount
+    const discountAmount = editFormData.discount ? amount : 0
+    const newTotal = Math.max(0, subtotal - discountAmount)
+    setEditFormData({
+      ...editFormData,
+      discountAmount: amount,
       totalAmount: newTotal
     })
   }
@@ -157,6 +208,20 @@ export default function MembershipEditPopup({
     if (editFormData.registrationFee && !editFormData.membershipPlan) {
       toast.error('Please select a membership plan before adding registration fee')
       return
+    }
+
+    // Validate discount amount
+    if (editFormData.discount) {
+      const registrationFeeAmount = editFormData.registrationFee ? editFormData.customRegistrationFee : 0
+      const subtotal = editFormData.membershipAmount + registrationFeeAmount
+      if (editFormData.discountAmount > subtotal) {
+        toast.error('Discount amount cannot exceed the total fees (membership + registration fee)')
+        return
+      }
+      if (editFormData.discountAmount < 0) {
+        toast.error('Discount amount cannot be negative')
+        return
+      }
     }
 
     setIsUpdating(true)
@@ -179,10 +244,14 @@ export default function MembershipEditPopup({
         // User has existing membership - update it
         await updateExistingMembership(membership.uid, {
           planType: selectedPlan.name as any,
-          amount: editFormData.totalAmount, // Use total amount (includes registration fee if selected)
+          amount: editFormData.totalAmount || 0, // Use total amount (includes registration fee if selected)
           paymentMethod: "Cash", // Default for admin assignments
           transactionId,
           registrationFee: editFormData.registrationFee, // Include registration fee flag
+          customRegistrationFee: editFormData.customRegistrationFee, // Include custom registration fee amount
+          discount: editFormData.discount, // Include discount flag
+          discountAmount: editFormData.discountAmount, // Include discount amount
+          totalAmount: editFormData.totalAmount || 0, // Include total amount
           status: "active", // Set status to active when plan is assigned
         })
       } else {
@@ -190,7 +259,7 @@ export default function MembershipEditPopup({
         const membershipData = {
           uid: membership.uid,
           planType: selectedPlan.name,
-          amount: editFormData.totalAmount,
+          amount: editFormData.totalAmount || 0,
           paymentMethod: "Cash",
           transactionId,
           startDate: new Date(),
@@ -199,6 +268,10 @@ export default function MembershipEditPopup({
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           registrationFee: editFormData.registrationFee,
+          customRegistrationFee: editFormData.customRegistrationFee,
+          discount: editFormData.discount,
+          discountAmount: editFormData.discountAmount,
+          totalAmount: editFormData.totalAmount || 0,
           renewalCount: 0,
           lastRenewalDate: new Date(),
           nextRenewalReminder: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000) // Reminder 5 days before expiry
@@ -207,29 +280,45 @@ export default function MembershipEditPopup({
         await addDoc(membershipRef, membershipData)
 
         // Update user document with membership info
-        await updateUserDocument(membership.uid, {
+        const userUpdateData: any = {
           membershipStatus: "active",
           membershipPlan: selectedPlan.name,
-          membershipAmount: editFormData.totalAmount,
+          membershipAmount: editFormData.totalAmount || 0,
           membershipStartDate: new Date(),
           membershipExpiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           lastRenewalReminder: new Date()
-        })
+        }
+
+        // Only add defined values to avoid Firebase errors
+        if (editFormData.registrationFee !== undefined) userUpdateData.registrationFee = editFormData.registrationFee
+        if (editFormData.customRegistrationFee !== undefined) userUpdateData.customRegistrationFee = editFormData.customRegistrationFee
+        if (editFormData.discount !== undefined) userUpdateData.discount = editFormData.discount
+        if (editFormData.discountAmount !== undefined) userUpdateData.discountAmount = editFormData.discountAmount
+        if (editFormData.totalAmount !== undefined) userUpdateData.totalAmount = editFormData.totalAmount
+
+        await updateUserDocument(membership.uid, userUpdateData)
       }
 
       // Create payment record for financial tracking (multiple payment records are kept for reporting)
       await addPaymentRecordWithRetention({
         uid: membership.uid,
-        amount: editFormData.totalAmount,
+        amount: editFormData.totalAmount || 0,
         planType: selectedPlan.name,
         transactionId,
         paymentMethod: "Cash",
         status: "completed", // Admin payments are automatically completed
         userEmail: membership.email,
         userName: membership.name,
+        registrationFee: editFormData.registrationFee,
+        customRegistrationFee: editFormData.customRegistrationFee,
+        discount: editFormData.discount,
+        discountAmount: editFormData.discountAmount
       })
 
       // Generate receipt for the membership
+      // The plan membership fee is the base membership amount (before registration fee and discount)
+      const planMembershipFee = editFormData.membershipAmount
+      
       const receiptData = {
         userId: membership.uid,
         memberId: membership.memberId || "N/A",
@@ -242,9 +331,16 @@ export default function MembershipEditPopup({
         endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
         status: "active" as const,
         gymName: "RangeFit Gym",
-        gymAddress: "123 Fitness Street, Karachi, Pakistan",
-        gymPhone: "+92-300-1234567",
-        gymEmail: "info@rangefitgym.com"
+        gymAddress: "Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan",
+        gymPhone: "0332 5727216",
+        gymEmail: "info@rangefitgym.com",
+        // New fields for detailed breakdown
+        planMembershipFee: planMembershipFee,
+        registrationFee: editFormData.registrationFee,
+        customRegistrationFee: editFormData.customRegistrationFee,
+        discount: editFormData.discount,
+        discountAmount: editFormData.discountAmount,
+        totalAmount: editFormData.totalAmount
       }
 
       await createReceipt(receiptData)
@@ -367,28 +463,106 @@ export default function MembershipEditPopup({
                      {/* Registration Fee */}
            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 sm:p-5">
              <label className="text-gray-300 text-sm font-medium mb-3 sm:mb-4 block">Additional Fees</label>
-             <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-               <input
-                 type="checkbox"
-                 id="registrationFee"
-                 checked={editFormData.registrationFee}
-                 onChange={(e) => handleRegistrationFeeChange(e.target.checked)}
-                 disabled={!editFormData.membershipPlan}
-                 className={`w-4 h-4 sm:w-5 sm:h-5 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2 ${
-                   !editFormData.membershipPlan ? 'opacity-50 cursor-not-allowed' : ''
-                 }`}
-               />
-               <div className="flex-1">
-                 <label htmlFor="registrationFee" className={`font-medium cursor-pointer text-sm sm:text-base ${
-                   !editFormData.membershipPlan ? 'text-gray-500 cursor-not-allowed' : 'text-white'
-                 }`}>
-                   Include Registration Fee
-                 </label>
-                 <p className="text-gray-400 text-xs sm:text-sm">One-time registration fee of Rs. {REGISTRATION_FEE.toLocaleString()}</p>
-                 {!editFormData.membershipPlan && (
-                   <p className="text-orange-400 text-xs mt-1">Please select a membership plan first</p>
-                 )}
+             <div className="space-y-4">
+               <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                 <input
+                   type="checkbox"
+                   id="registrationFee"
+                   checked={editFormData.registrationFee}
+                   onChange={(e) => handleRegistrationFeeChange(e.target.checked)}
+                   disabled={!editFormData.membershipPlan}
+                   className={`w-4 h-4 sm:w-5 sm:h-5 text-orange-600 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2 ${
+                     !editFormData.membershipPlan ? 'opacity-50 cursor-not-allowed' : ''
+                   }`}
+                 />
+                 <div className="flex-1">
+                   <label htmlFor="registrationFee" className={`font-medium cursor-pointer text-sm sm:text-base ${
+                     !editFormData.membershipPlan ? 'text-gray-500 cursor-not-allowed' : 'text-white'
+                   }`}>
+                     Include Registration Fee
+                   </label>
+                   <p className="text-gray-400 text-xs sm:text-sm">One-time registration fee</p>
+                   {!editFormData.membershipPlan && (
+                     <p className="text-orange-400 text-xs mt-1">Please select a membership plan first</p>
+                   )}
+                 </div>
                </div>
+               
+               {/* Custom Registration Fee Input */}
+               {editFormData.registrationFee && (
+                 <div className="mt-4 pl-8">
+                   <label className="text-gray-300 text-sm font-medium mb-2 block">Registration Fee Amount</label>
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-400 text-sm">Rs.</span>
+                     <input
+                       type="number"
+                       value={editFormData.customRegistrationFee}
+                       onChange={(e) => handleCustomRegistrationFeeChange(Number(e.target.value))}
+                       min="0"
+                       step="100"
+                       className="w-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:ring-orange-500 focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                       placeholder="5000"
+                     />
+                     <span className="text-gray-400 text-xs">(Default: Rs. 5,000)</span>
+                   </div>
+                 </div>
+               )}
+             </div>
+           </div>
+
+           {/* Discount Section */}
+           <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 sm:p-5">
+             <label className="text-gray-300 text-sm font-medium mb-3 sm:mb-4 block">Discount</label>
+             <div className="space-y-4">
+               <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+                 <input
+                   type="checkbox"
+                   id="discount"
+                   checked={editFormData.discount}
+                   onChange={(e) => handleDiscountChange(e.target.checked)}
+                   disabled={!editFormData.membershipPlan}
+                   className={`w-4 h-4 sm:w-5 sm:h-5 text-green-600 bg-gray-700 border-gray-600 rounded focus:ring-green-500 focus:ring-2 ${
+                     !editFormData.membershipPlan ? 'opacity-50 cursor-not-allowed' : ''
+                   }`}
+                 />
+                 <div className="flex-1">
+                   <label htmlFor="discount" className={`font-medium cursor-pointer text-sm sm:text-base ${
+                     !editFormData.membershipPlan ? 'text-gray-500 cursor-not-allowed' : 'text-white'
+                   }`}>
+                     Apply Discount
+                   </label>
+                   <p className="text-gray-400 text-xs sm:text-sm">Apply discount to membership fees</p>
+                   {!editFormData.membershipPlan && (
+                     <p className="text-orange-400 text-xs mt-1">Please select a membership plan first</p>
+                   )}
+                 </div>
+               </div>
+               
+               {/* Custom Discount Input */}
+               {editFormData.discount && (
+                 <div className="mt-4 pl-8">
+                   <label className="text-gray-300 text-sm font-medium mb-2 block">Discount Amount</label>
+                   <div className="flex items-center space-x-2">
+                     <span className="text-gray-400 text-sm">Rs.</span>
+                     <input
+                       type="number"
+                       value={editFormData.discountAmount}
+                       onChange={(e) => handleDiscountAmountChange(Number(e.target.value))}
+                       min="0"
+                       step="100"
+                       max={editFormData.membershipAmount + (editFormData.registrationFee ? editFormData.customRegistrationFee : 0)}
+                       className="w-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:ring-green-500 focus:border-green-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                       placeholder="0"
+                     />
+                     <span className="text-gray-400 text-xs">
+                       (Max: Rs. {(editFormData.membershipAmount + (editFormData.registrationFee ? editFormData.customRegistrationFee : 0)).toLocaleString()})
+                     </span>
+                   </div>
+                   {editFormData.discountAmount > (editFormData.membershipAmount + (editFormData.registrationFee ? editFormData.customRegistrationFee : 0)) && (
+                     <p className="text-red-400 text-xs mt-1">Discount cannot exceed total fees</p>
+                   )}
+                 </div>
+               )}
              </div>
            </div>
 
@@ -403,7 +577,13 @@ export default function MembershipEditPopup({
               {editFormData.registrationFee && (
                 <div className="flex justify-between items-center py-2">
                   <span className="text-gray-400 text-base sm:text-lg">Registration Fee</span>
-                  <span className="text-white font-semibold text-base sm:text-lg">Rs. {REGISTRATION_FEE.toLocaleString()}</span>
+                  <span className="text-white font-semibold text-base sm:text-lg">Rs. {editFormData.customRegistrationFee.toLocaleString()}</span>
+                </div>
+              )}
+              {editFormData.discount && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-gray-400 text-base sm:text-lg">Discount</span>
+                  <span className="text-green-400 font-semibold text-base sm:text-lg">- Rs. {editFormData.discountAmount.toLocaleString()}</span>
                 </div>
               )}
               <div className="border-t border-gray-600 pt-3 sm:pt-4 mt-3 sm:mt-4">
