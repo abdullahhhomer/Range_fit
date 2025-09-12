@@ -13,6 +13,7 @@ import { Dumbbell, Heart, Users, Star, Check, CreditCard, AlertCircle, X } from 
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
+import { getThumbnailUrl } from "@/lib/cloudinary-client"
 import {
   createMembershipRequest,
   addPaymentRecord,
@@ -525,7 +526,7 @@ export default function MembershipPlansPage() {
                   <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600 text-center">
                     <div className="mb-4">
                       <Image
-                        src="/images/trainers/Saad.jpg"
+                        src={getThumbnailUrl("https://res.cloudinary.com/dn5j4i85r/image/upload/v1757660845/Saad_zcvmn4.jpg", 150, 180)}
                         alt="Muhammad Saad"
                         width={150}
                         height={180}
@@ -552,7 +553,7 @@ export default function MembershipPlansPage() {
                   <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600 text-center">
                     <div className="mb-4">
                       <Image
-                        src="/images/trainers/Tayyab.jpg"
+                        src={getThumbnailUrl("https://res.cloudinary.com/dn5j4i85r/image/upload/v1757660845/Tayyab_bpxy10.jpg", 150, 180)}
                         alt="Muhammad Tayyab Zafar"
                         width={150}
                         height={180}
@@ -579,7 +580,7 @@ export default function MembershipPlansPage() {
                   <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600 text-center">
                     <div className="mb-4">
                       <Image
-                        src="/images/trainers/Zain.jpg"
+                        src={getThumbnailUrl("https://res.cloudinary.com/dn5j4i85r/image/upload/v1757660845/Zain_d2x61g.jpg", 150, 180)}
                         alt="Muhammad Zain Ishfaq"
                         width={150}
                         height={180}

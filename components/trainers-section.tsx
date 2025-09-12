@@ -3,27 +3,28 @@
 import { motion } from "framer-motion"
 import { Card, CardContent } from "@/components/ui/card"
 import Image from "next/image"
+import { getThumbnailUrl } from "@/lib/cloudinary-client"
 
 export default function TrainersSection() {
   const trainers = [
     {
       name: "Muhammad Saad",
       role: "Fitness & Nutrition Specialist",
-      image: "/images/trainers/Saad.jpg",
+      image: getThumbnailUrl("https://res.cloudinary.com/dn5j4i85r/image/upload/v1757660845/Saad_zcvmn4.jpg", 200, 250),
       description: "With 4 years of experience, I create customized Workout Routines & Diet Plans tailored to Individual Goals for Lasting Results.",
       instagram: "https://www.instagram.com/m_saad.222?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
     },
     {
       name: "Muhammad Tayyab Zafar",
       role: "Posture Correction & Muscle Health Specialist",
-      image: "/images/trainers/Tayyab.jpg",
+      image: getThumbnailUrl("https://res.cloudinary.com/dn5j4i85r/image/upload/v1757660845/Tayyab_bpxy10.jpg", 200, 250),
       description: "With over 3 years of experience, I help people fix Posture, Relieve Stiffness, Burn Fat & Build Muscle.",
       instagram: "https://www.instagram.com/tayyab___x1?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
     },
     {
       name: "Muhammad Zain Ishfaq",
       role: "Muscle Building Specialist",
-      image: "/images/trainers/Zain.jpg",
+      image: getThumbnailUrl("https://res.cloudinary.com/dn5j4i85r/image/upload/v1757660845/Zain_d2x61g.jpg", 200, 250),
       description: "With 5 years of experience, I create personalized Training & Nutrition Plans to help people Build Muscle, Strength, & Maximize Performance.",
       instagram: "https://www.instagram.com/zain.hun___?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
     },

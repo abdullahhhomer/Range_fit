@@ -2,26 +2,51 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react"
+import { getOptimizedVideoUrl } from "@/lib/cloudinary-client"
 
 interface HeroSectionProps {
   scrollToSection: (sectionId: string) => void
 }
 
 export default function HeroSection({ scrollToSection }: HeroSectionProps) {
+  const [videoLoaded, setVideoLoaded] = useState(false)
+  const [videoError, setVideoError] = useState(false)
+  
+  // Get optimized video URL from Cloudinary
+  const videoUrl = getOptimizedVideoUrl('gym-video_y4jrno', 1920, 1080)
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden w-full">
       {/* Video Background */}
       <div className="absolute inset-0 w-full h-full overflow-hidden">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-          poster="/placeholder.jpg"
-        >
-          <source src="/gym-video.mp4" type="video/mp4" />
-        </video>
+        {!videoError ? (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+              videoLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            poster="/placeholder.jpg"
+            onLoadedData={() => setVideoLoaded(true)}
+            onError={() => setVideoError(true)}
+          >
+            <source src={videoUrl} type="video/mp4" />
+          </video>
+        ) : (
+          <div 
+            className="absolute inset-0 w-full h-full bg-cover bg-center"
+            style={{ backgroundImage: 'url(/placeholder.jpg)' }}
+          />
+        )}
+        
+        {/* Loading Spinner */}
+        {!videoLoaded && !videoError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+          </div>
+        )}
         
         {/* Video overlay for better text readability */}
         <div className="absolute inset-0 bg-gradient-to-br from-orange-900/15 via-black/25 to-orange-800/10" />

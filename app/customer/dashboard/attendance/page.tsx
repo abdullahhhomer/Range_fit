@@ -8,14 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Calendar, Clock, Shield, Search, Download, Filter } from "lucide-react"
-
-interface AttendanceRecord {
-  id: string
-  date: Date
-  time: string
-  type: "verified" | "manual"
-  verified: boolean
-}
+import { getUserAttendance, type AttendanceRecord } from "@/lib/firebase"
 
 export default function AttendancePage() {
   const { user } = useAuth()

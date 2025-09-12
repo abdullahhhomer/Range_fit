@@ -28,6 +28,34 @@ export const uploadImageToCloudinary = async (file: File): Promise<string> => {
   }
 }
 
+// Upload video to Cloudinary
+export const uploadVideoToCloudinary = async (file: File): Promise<string> => {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'default_preset')
+    formData.append('cloud_name', process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '')
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/video/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to upload video')
+    }
+
+    const data = await response.json()
+    return data.secure_url
+  } catch (error) {
+    console.error('Error uploading video:', error)
+    throw new Error('Failed to upload video to Cloudinary')
+  }
+}
+
 // Delete image from Cloudinary (via API route)
 export const deleteImageFromCloudinary = async (publicId: string): Promise<void> => {
   try {
@@ -57,6 +85,31 @@ export const getCloudinaryUrl = (url: string, transformations?: string): string 
   }
   
   return url
+}
+
+// Get Cloudinary video URL with transformations
+export const getCloudinaryVideoUrl = (url: string, transformations?: string): string => {
+  if (!url.includes('cloudinary.com')) return url
+  
+  if (transformations) {
+    return url.replace('/upload/', `/upload/${transformations}/`)
+  }
+  
+  return url
+}
+
+// Generate optimized video URL for different devices
+export const getOptimizedVideoUrl = (publicId: string, width?: number, height?: number): string => {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+  if (!cloudName) return ''
+  
+  let transformations = 'q_auto,f_auto'
+  
+  if (width && height) {
+    transformations += `,w_${width},h_${height}`
+  }
+  
+  return `https://res.cloudinary.com/${cloudName}/video/upload/${transformations}/${publicId}.mp4`
 }
 
 // Generate thumbnail URL

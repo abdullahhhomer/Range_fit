@@ -59,6 +59,13 @@ export default function RootLayout({
         <link rel="shortcut icon" type="image/png" href="/logo.png" />
         <script src="/console-filter.js" defer></script>
         <link rel="apple-touch-icon" type="image/png" href="/logo.png" />
+        {/* Preload hero video for faster loading */}
+        <link 
+          rel="preload" 
+          href="https://res.cloudinary.com/dn5j4i85r/video/upload/q_auto,f_auto,w_1920,h_1080/gym-video_y4jrno.mp4" 
+          as="video" 
+          type="video/mp4"
+        />
         <style>{`
 html {
   font-family: ${GeistSans.style.fontFamily};
