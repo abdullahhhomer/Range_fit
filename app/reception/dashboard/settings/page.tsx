@@ -51,7 +51,7 @@ export default function ReceptionSettingsPage() {
     name: "",
     email: "",
     phone: "",
-    fatherName: "",
+    cnic: "",
     address: "",
     gender: "" as "Male" | "Female" | "Other" | "",
     fingerprintId: "",
@@ -125,7 +125,7 @@ export default function ReceptionSettingsPage() {
             name: userData.name || "",
             email: userData.email || "",
             phone: userData.phone || "",
-            fatherName: userData.fatherName || "",
+            cnic: userData.cnic || "",
             address: userData.address || "",
             gender: userData.gender || "",
             fingerprintId: userData.fingerprintId || "",
@@ -151,8 +151,8 @@ export default function ReceptionSettingsPage() {
         toast.error("Full Name is required")
         return
       }
-      if (!profileData.fatherName.trim()) {
-        toast.error("Father's Name is required")
+      if (!profileData.cnic.trim()) {
+        toast.error("CNIC is required")
         return
       }
       if (!profileData.phone.trim()) {
@@ -182,7 +182,7 @@ export default function ReceptionSettingsPage() {
       await updateUserProfile({
         name: profileData.name.trim(),
         phone: cleanPhoneNumber(profileData.phone.trim()),
-        fatherName: profileData.fatherName.trim(),
+        cnic: profileData.cnic.trim(),
         address: profileData.address.trim(),
         gender: profileData.gender as "Male" | "Female" | "Other",
         profileImageUrl: profileData.profileImageUrl,
@@ -213,7 +213,7 @@ export default function ReceptionSettingsPage() {
         name: fullUserData.name || "",
         email: fullUserData.email || "",
         phone: fullUserData.phone || "",
-        fatherName: fullUserData.fatherName || "",
+        cnic: fullUserData.cnic || "",
         address: fullUserData.address || "",
         gender: fullUserData.gender || "",
         fingerprintId: fullUserData.fingerprintId || "",
@@ -237,6 +237,31 @@ export default function ReceptionSettingsPage() {
   // Function to clean phone number (remove spaces for validation)
   const cleanPhoneNumber = (phone: string) => {
     return phone.replace(/\s/g, '')
+  }
+
+  // Function to format CNIC
+  const formatCNIC = (cnic: string) => {
+    if (!cnic) return ''
+    const cleaned = cnic.replace(/\D/g, '')
+    
+    if (cleaned.length <= 5) {
+      return cleaned
+    } else if (cleaned.length <= 12) {
+      return `${cleaned.slice(0, 5)}-${cleaned.slice(5)}`
+    } else {
+      return `${cleaned.slice(0, 5)}-${cleaned.slice(5, 12)}-${cleaned.slice(12, 13)}`
+    }
+  }
+
+  // Function to handle CNIC input changes
+  const handleCNICChange = (value: string) => {
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, '')
+    
+    // Limit to 13 digits
+    if (digitsOnly.length <= 13) {
+      setProfileData({ ...profileData, cnic: digitsOnly })
+    }
   }
 
   const isProfileIncomplete = fullUserData && !fullUserData.profileComplete
@@ -469,22 +494,23 @@ export default function ReceptionSettingsPage() {
               </div>
 
               <div>
-                <Label htmlFor="fatherName" className="text-gray-300">
-                  Father's Name {isEditing && <span className="text-red-400">*</span>}
+                <Label htmlFor="cnic" className="text-gray-300">
+                  CNIC {isEditing && <span className="text-red-400">*</span>}
                 </Label>
                 {isEditing ? (
                   <Input
-                    id="fatherName"
-                    value={profileData.fatherName}
-                    onChange={(e) => setProfileData({ ...profileData, fatherName: e.target.value })}
+                    id="cnic"
+                    value={formatCNIC(profileData.cnic)}
+                    onChange={(e) => handleCNICChange(e.target.value)}
                     className="bg-gray-700 border-gray-600 text-white mt-1 h-12 text-base"
                     required
-                    placeholder="Enter your father's name"
+                    placeholder="XXXXX-XXXXXXX-X"
+                    maxLength={15}
                   />
                 ) : (
                   <div className="flex items-center space-x-2 mt-1">
                     <Users className="h-4 w-4 text-gray-400" />
-                    <span className="text-white text-sm sm:text-base">{profileData.fatherName || "Not provided"}</span>
+                    <span className="text-white text-sm sm:text-base">{profileData.cnic || "Not provided"}</span>
                   </div>
                 )}
               </div>

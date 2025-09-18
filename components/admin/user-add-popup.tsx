@@ -36,7 +36,7 @@ export default function UserAddPopup({ onClose, onUserAdded }: UserAddPopupProps
     email: '',
     phone: '',
     gender: '',
-    fatherName: '',
+    cnic: '',
     address: '',
     role: 'customer',
     password: ''
@@ -79,6 +79,19 @@ export default function UserAddPopup({ onClose, onUserAdded }: UserAddPopupProps
     return cleaned
   }
 
+  const formatCNIC = (cnic: string) => {
+    if (!cnic) return ''
+    const cleaned = cnic.replace(/\D/g, '')
+    
+    if (cleaned.length <= 5) {
+      return cleaned
+    } else if (cleaned.length <= 12) {
+      return `${cleaned.slice(0, 5)}-${cleaned.slice(5)}`
+    } else {
+      return `${cleaned.slice(0, 5)}-${cleaned.slice(5, 12)}-${cleaned.slice(12, 13)}`
+    }
+  }
+
   const handlePhoneChange = (value: string) => {
     // Remove all non-digit characters
     const digitsOnly = value.replace(/\D/g, '')
@@ -86,6 +99,16 @@ export default function UserAddPopup({ onClose, onUserAdded }: UserAddPopupProps
     // Limit to 11 digits
     if (digitsOnly.length <= 11) {
       handleInputChange('phone', digitsOnly)
+    }
+  }
+
+  const handleCNICChange = (value: string) => {
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, '')
+    
+    // Limit to 13 digits
+    if (digitsOnly.length <= 13) {
+      handleInputChange('cnic', digitsOnly)
     }
   }
 
@@ -139,27 +162,21 @@ export default function UserAddPopup({ onClose, onUserAdded }: UserAddPopupProps
       return false
     }
     
-    // Phone validation (mandatory)
-    if (!formData.phone?.trim()) {
-      toast.error('Please enter the phone number')
+    // Phone validation (optional)
+    if (formData.phone?.trim() && formData.phone.length !== 11) {
+      toast.error('Phone number must be 11 digits')
       return false
     }
-    if (formData.phone.length !== 11) {
-      toast.error('Phone number must be 11 digits')
+    
+    // CNIC validation (optional)
+    if (formData.cnic?.trim() && formData.cnic.length !== 13) {
+      toast.error('CNIC must be 13 digits')
       return false
     }
     
     // Additional validations for admin-created users
     if (!formData.gender?.trim()) {
       toast.error('Please select a gender')
-      return false
-    }
-    if (!formData.fatherName?.trim()) {
-      toast.error('Please enter the father\'s name')
-      return false
-    }
-    if (!formData.address?.trim()) {
-      toast.error('Please enter the address')
       return false
     }
     
@@ -301,10 +318,12 @@ export default function UserAddPopup({ onClose, onUserAdded }: UserAddPopupProps
         fingerprintStatus: 'not_enrolled',
         // Only add phone if it's provided and not empty
         ...(formData.phone?.trim() && { phone: formData.phone.trim() }),
+        // Only add CNIC if it's provided and not empty
+        ...(formData.cnic?.trim() && { cnic: formData.cnic.trim() }),
+        // Only add address if it's provided and not empty
+        ...(formData.address?.trim() && { address: formData.address.trim() }),
         // Additional fields for admin-created users
         gender: formData.gender.trim(),
-        fatherName: formData.fatherName.trim(),
-        address: formData.address.trim(),
         // Mark as admin-created for tracking
         createdBy: 'admin',
         // Store password hash for future reference (optional)
@@ -446,7 +465,7 @@ export default function UserAddPopup({ onClose, onUserAdded }: UserAddPopupProps
 
                              <div>
                  <Label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">
-                   Phone Number *
+                   Phone Number (Optional)
                  </Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -490,20 +509,21 @@ export default function UserAddPopup({ onClose, onUserAdded }: UserAddPopupProps
             <div className="space-y-3 sm:space-y-4">
               <div>
                 <Label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">
-                  Father's Name *
+                  CNIC (Optional)
                 </Label>
                 <Input
                   type="text"
-                  value={formData.fatherName}
-                  onChange={(e) => handleInputChange('fatherName', e.target.value)}
-                  placeholder="Enter father's name"
+                  value={formatCNIC(formData.cnic)}
+                  onChange={(e) => handleCNICChange(e.target.value)}
+                  placeholder="XXXXX-XXXXXXX-X"
                   className="bg-gray-700 border-gray-600 text-white text-sm sm:text-base h-10 sm:h-11"
+                  maxLength={15}
                 />
               </div>
 
               <div>
                 <Label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">
-                  Address *
+                  Address (Optional)
                 </Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />

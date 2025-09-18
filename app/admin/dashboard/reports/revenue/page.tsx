@@ -84,6 +84,7 @@ export default function RevenueReport() {
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [availableYears, setAvailableYears] = useState<number[]>([])
   const [displayedPaymentsCount, setDisplayedPaymentsCount] = useState(15)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   // Dropdown state
   const [timeRangeDropdownOpen, setTimeRangeDropdownOpen] = useState(false)
@@ -188,9 +189,46 @@ export default function RevenueReport() {
     })
   }
 
-  // Load more payments function
+  // Load more payments function with smooth loading
   const loadMorePayments = () => {
-    setDisplayedPaymentsCount(prev => prev + 15)
+    if (isLoadingMore) return // Prevent multiple rapid clicks
+    
+    setIsLoadingMore(true)
+    
+    // Prevent scrollbar flicker by maintaining scroll position
+    const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop
+    
+    // Add a small delay for smooth animation
+    setTimeout(() => {
+      setDisplayedPaymentsCount(prev => prev + 15)
+      
+      // Restore scroll position after state update and reset loading state
+      setTimeout(() => {
+        window.scrollTo(0, currentScrollPosition)
+        setIsLoadingMore(false)
+      }, 300) // Match animation duration
+    }, 50)
+  }
+
+  // Hide/show less payments function
+  const showLessPayments = () => {
+    if (isLoadingMore) return // Prevent multiple rapid clicks
+    
+    setIsLoadingMore(true)
+    
+    // Prevent scrollbar flicker by maintaining scroll position
+    const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop
+    
+    // Add a small delay for smooth animation
+    setTimeout(() => {
+      setDisplayedPaymentsCount(15) // Reset to show only first 15
+      
+      // Restore scroll position after state update and reset loading state
+      setTimeout(() => {
+        window.scrollTo(0, currentScrollPosition)
+        setIsLoadingMore(false)
+      }, 300) // Match animation duration
+    }, 50)
   }
 
   // Close dropdowns when clicking outside
@@ -641,6 +679,18 @@ export default function RevenueReport() {
   return (
     <ProtectedRoute allowedRoles={["admin"]}>
       <AdminDashboardLayout>
+        <style jsx>{`
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(20px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-6">
           <div className="max-w-7xl mx-auto space-y-8">
             {/* Header */}
@@ -948,7 +998,7 @@ export default function RevenueReport() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto transition-all duration-300 ease-in-out" style={{ minHeight: '200px' }}>
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-700">
@@ -963,8 +1013,14 @@ export default function RevenueReport() {
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.slice(0, displayedPaymentsCount).map((payment) => (
-                      <tr key={payment.transactionId} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                    {payments.slice(0, displayedPaymentsCount).map((payment, index) => (
+                      <tr 
+                        key={payment.transactionId} 
+                        className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-all duration-300 ease-in-out"
+                        style={{
+                          animation: `fadeInUp 0.3s ease-in-out ${index * 0.05}s both`
+                        }}
+                      >
                         <td className="p-3">
                           <div className="flex items-center space-x-3">
                             <Avatar className="h-10 w-10">
@@ -1058,17 +1114,54 @@ export default function RevenueReport() {
                     ))}
                   </tbody>
                 </table>
-                {payments.length > displayedPaymentsCount && (
+                {payments.length > 15 && (
                   <div className="text-center mt-6">
-                    <Button
-                      onClick={loadMorePayments}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-lg transition-all duration-200 hover:scale-105"
-                    >
-                      Load More Transactions
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                      {payments.length > displayedPaymentsCount && (
+                        <Button
+                          onClick={loadMorePayments}
+                          disabled={isLoadingMore}
+                          className={`px-6 py-2 rounded-lg transition-all duration-200 ${
+                            isLoadingMore 
+                              ? 'bg-orange-400 cursor-not-allowed' 
+                              : 'bg-orange-600 hover:bg-orange-700'
+                          } text-white flex items-center justify-center gap-2`}
+                        >
+                          {isLoadingMore ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'Load More Transactions'
+                          )}
+                        </Button>
+                      )}
+                      
+                      {displayedPaymentsCount > 15 && (
+                        <Button
+                          onClick={showLessPayments}
+                          disabled={isLoadingMore}
+                          className={`px-6 py-2 rounded-lg transition-all duration-200 ${
+                            isLoadingMore 
+                              ? 'bg-orange-400 cursor-not-allowed' 
+                              : 'bg-orange-600 hover:bg-orange-700'
+                          } text-white flex items-center justify-center gap-2`}
+                        >
+                          {isLoadingMore ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'Show Less'
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
-                {payments.length <= displayedPaymentsCount && payments.length > 0 && (
+                {payments.length <= displayedPaymentsCount && payments.length > 0 && displayedPaymentsCount === 15 && (
                   <div className="text-center mt-4">
                     <p className="text-gray-400">Showing all {payments.length} transactions</p>
                   </div>

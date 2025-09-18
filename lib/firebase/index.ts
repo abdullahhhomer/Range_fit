@@ -62,6 +62,8 @@ export {
 // Data optimization
 export {
   updateExistingMembership,
+  updateExistingPaymentRecord,
+  updateExistingReceiptRecord,
   manualArchivePaymentRecords,
   manualCleanupArchivedRecords,
   getActivePaymentRecords,

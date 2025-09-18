@@ -56,7 +56,7 @@ export default function CustomerDashboard() {
   const checkProfileCompletion = (userData: any): boolean => {
     return !!(
       userData?.name?.trim() &&
-      userData?.fatherName?.trim() &&
+      userData?.cnic?.trim() &&
       userData?.phone?.trim() &&
       userData?.phone?.length === 11 &&
       userData?.gender &&

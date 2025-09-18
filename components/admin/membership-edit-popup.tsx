@@ -7,8 +7,9 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { getProfileImageUrl } from '@/lib/cloudinary-client'
 import { updateExistingMembership, addPaymentRecordWithRetention, createReceipt, updateUserDocument } from '@/lib/firebase'
+import { updateExistingPaymentRecord, updateExistingReceiptRecord } from '@/lib/firebase/data-optimization'
+import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { query, where, getDocs, addDoc, collection, serverTimestamp } from 'firebase/firestore'
 
 interface MembershipData {
   uid: string
@@ -79,6 +80,28 @@ const MEMBERSHIP_PLANS = [
 ]
 
 const REGISTRATION_FEE = 5000
+
+// Helper function to calculate days remaining until membership expiry
+const calculateDaysRemaining = (endDate: Date): number => {
+  const now = new Date()
+  const timeDiff = endDate.getTime() - now.getTime()
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24))
+  return Math.max(0, daysRemaining) // Return 0 if already expired
+}
+
+// Helper function to get plan duration in days
+const getPlanDurationDays = (planType: string): number => {
+  switch (planType) {
+    case 'visitor':
+      return 1
+    case 'strength':
+    case 'cardio':
+    case 'combo':
+      return 30 // 1 month
+    default:
+      return 30 // Default to 1 month
+  }
+}
 
 // Function to format phone number with space after first 4 digits
 const formatPhoneNumber = (phone: string) => {
@@ -242,7 +265,7 @@ export default function MembershipEditPopup({
 
       if (!querySnapshot.empty) {
         // User has existing membership - update it
-        await updateExistingMembership(membership.uid, {
+        const updateResult = await updateExistingMembership(membership.uid, {
           planType: selectedPlan.name as any,
           amount: editFormData.totalAmount || 0, // Use total amount (includes registration fee if selected)
           paymentMethod: "Cash", // Default for admin assignments
@@ -254,6 +277,137 @@ export default function MembershipEditPopup({
           totalAmount: editFormData.totalAmount || 0, // Include total amount
           status: "active", // Set status to active when plan is assigned
         })
+        
+        const { wasRenewal, daysRemaining } = updateResult
+        
+        // Handle payment and receipt based on renewal status
+        if (wasRenewal) {
+          // RENEWAL: Create new payment and receipt records
+          console.log('🔄 Creating new payment and receipt records for renewal')
+          
+          await addPaymentRecordWithRetention({
+            uid: membership.uid,
+            amount: editFormData.totalAmount || 0,
+            planType: selectedPlan.name,
+            transactionId,
+            paymentMethod: "Cash",
+            status: "completed",
+            userEmail: membership.email,
+            userName: membership.name,
+            registrationFee: editFormData.registrationFee,
+            customRegistrationFee: editFormData.customRegistrationFee,
+            discount: editFormData.discount,
+            discountAmount: editFormData.discountAmount
+          })
+          
+          // Generate new receipt for the renewal
+          const planMembershipFee = editFormData.membershipAmount
+          const receiptData = {
+            userId: membership.uid,
+            memberId: membership.memberId || `M${Date.now()}`,
+            customerName: membership.name,
+            membershipType: selectedPlan.name,
+            amount: editFormData.totalAmount || 0,
+            paymentMethod: "Cash",
+            transactionId,
+            startDate: new Date(),
+            endDate: new Date(Date.now() + getPlanDurationDays(selectedPlan.id) * 24 * 60 * 60 * 1000),
+            gymName: "RangeFit Gym",
+            gymAddress: "Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan",
+            gymPhone: "0332 5727216",
+            gymEmail: "info@rangefitgym.com",
+            planMembershipFee: planMembershipFee,
+            registrationFee: editFormData.registrationFee,
+            customRegistrationFee: editFormData.customRegistrationFee,
+            discount: editFormData.discount,
+            discountAmount: editFormData.discountAmount,
+            totalAmount: editFormData.totalAmount
+          }
+          
+          await createReceipt(receiptData)
+        } else {
+          // UPDATE ONLY: Update existing payment and receipt records
+          console.log('📝 Updating existing payment and receipt records (renewal blocked)')
+          
+          try {
+            // Check if user has existing payment records
+            const paymentRef = collection(db, 'payments')
+            const paymentQuery = query(paymentRef, where('uid', '==', membership.uid))
+            const paymentSnapshot = await getDocs(paymentQuery)
+            
+            if (!paymentSnapshot.empty) {
+              // User has existing payment records - update them
+              await updateExistingPaymentRecord(membership.uid, {
+                amount: editFormData.totalAmount || 0,
+                planType: selectedPlan.name,
+                transactionId,
+                paymentMethod: "Cash",
+                status: "completed",
+                userEmail: membership.email,
+                userName: membership.name,
+                registrationFee: editFormData.registrationFee,
+                customRegistrationFee: editFormData.customRegistrationFee,
+                discount: editFormData.discount,
+                discountAmount: editFormData.discountAmount,
+                updatedBy: currentUserId,
+                updateReason: "Payment details updated - renewal blocked due to sufficient time remaining"
+              })
+              console.log('✅ Payment record updated successfully')
+            } else {
+              console.log('ℹ️ No existing payment records found - skipping payment update')
+            }
+            
+            // Check if user has existing receipt records
+            const receiptRef = collection(db, 'receipts')
+            const receiptQuery = query(receiptRef, where('userId', '==', membership.uid))
+            const receiptSnapshot = await getDocs(receiptQuery)
+            
+            if (!receiptSnapshot.empty) {
+              // User has existing receipt records - update them
+              const planMembershipFee = editFormData.membershipAmount
+              const receiptUpdateData = {
+                userId: membership.uid,
+                memberId: membership.memberId || `M${Date.now()}`,
+                customerName: membership.name,
+                membershipType: selectedPlan.name,
+                amount: editFormData.totalAmount || 0,
+                paymentMethod: "Cash",
+                transactionId,
+                startDate: new Date(),
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                gymName: "RangeFit Gym",
+                gymAddress: "Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan",
+                gymPhone: "0332 5727216",
+                gymEmail: "info@rangefitgym.com",
+                planMembershipFee: planMembershipFee,
+                registrationFee: editFormData.registrationFee,
+                customRegistrationFee: editFormData.customRegistrationFee,
+                discount: editFormData.discount,
+                discountAmount: editFormData.discountAmount,
+                totalAmount: editFormData.totalAmount,
+                updatedBy: currentUserId,
+                updateReason: "Receipt updated - renewal blocked due to sufficient time remaining"
+              }
+              
+              await updateExistingReceiptRecord(membership.uid, receiptUpdateData)
+              console.log('✅ Receipt record updated successfully')
+            } else {
+              console.log('ℹ️ No existing receipt records found - skipping receipt update')
+            }
+            
+          } catch (updateError) {
+            console.warn('⚠️ Failed to update existing records, but membership was updated:', updateError)
+            // Don't throw error here - membership was still updated successfully
+          }
+        }
+        
+        // Success message for existing membership
+        const successMessage = wasRenewal 
+          ? `Membership renewed successfully for ${membership.name}` 
+          : `Payment details updated successfully for ${membership.name} (renewal blocked - ${daysRemaining} days remaining)`
+        
+        toast.success(successMessage)
+        onSuccess()
       } else {
         // User has no membership - create new one
         const membershipData = {
@@ -297,56 +451,55 @@ export default function MembershipEditPopup({
         if (editFormData.totalAmount !== undefined) userUpdateData.totalAmount = editFormData.totalAmount
 
         await updateUserDocument(membership.uid, userUpdateData)
+        
+        // Create payment record for new membership
+        console.log('💰 Creating payment record for new membership')
+        await addPaymentRecordWithRetention({
+          uid: membership.uid,
+          amount: editFormData.totalAmount || 0,
+          planType: selectedPlan.name,
+          transactionId,
+          paymentMethod: "Cash",
+          status: "completed",
+          userEmail: membership.email,
+          userName: membership.name,
+          registrationFee: editFormData.registrationFee,
+          customRegistrationFee: editFormData.customRegistrationFee,
+          discount: editFormData.discount,
+          discountAmount: editFormData.discountAmount
+        })
+        
+        // Create receipt for new membership
+        console.log('🧾 Creating receipt for new membership')
+        const planMembershipFee = selectedPlan.price
+        const receiptData = {
+          userId: membership.uid,
+          memberId: membership.memberId || `M${Date.now()}`,
+          customerName: membership.name,
+          membershipType: selectedPlan.name,
+          amount: editFormData.totalAmount || 0,
+          paymentMethod: "Cash",
+          transactionId,
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          gymName: "Range Fit Gym",
+          gymAddress: "123 Main Street, City, Country",
+          gymPhone: "0332 5727216",
+          gymEmail: "info@rangefitgym.com",
+          planMembershipFee: planMembershipFee,
+          registrationFee: editFormData.registrationFee,
+          customRegistrationFee: editFormData.customRegistrationFee,
+          discount: editFormData.discount,
+          discountAmount: editFormData.discountAmount,
+          totalAmount: editFormData.totalAmount
+        }
+        
+        await createReceipt(receiptData)
+        
+        // Success message for new membership
+        toast.success(`Membership created successfully for ${membership.name}`)
+        onSuccess()
       }
-
-      // Create payment record for financial tracking (multiple payment records are kept for reporting)
-      await addPaymentRecordWithRetention({
-        uid: membership.uid,
-        amount: editFormData.totalAmount || 0,
-        planType: selectedPlan.name,
-        transactionId,
-        paymentMethod: "Cash",
-        status: "completed", // Admin payments are automatically completed
-        userEmail: membership.email,
-        userName: membership.name,
-        registrationFee: editFormData.registrationFee,
-        customRegistrationFee: editFormData.customRegistrationFee,
-        discount: editFormData.discount,
-        discountAmount: editFormData.discountAmount
-      })
-
-      // Generate receipt for the membership
-      // The plan membership fee is the base membership amount (before registration fee and discount)
-      const planMembershipFee = editFormData.membershipAmount
-      
-      const receiptData = {
-        userId: membership.uid,
-        memberId: membership.memberId || "N/A",
-        customerName: membership.name,
-        membershipType: selectedPlan.name,
-        amount: editFormData.totalAmount,
-        paymentMethod: "Cash",
-        transactionId,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-        status: "active" as const,
-        gymName: "RangeFit Gym",
-        gymAddress: "Al Harmain Plaza, Range Rd, Rawalpindi, Pakistan",
-        gymPhone: "0332 5727216",
-        gymEmail: "info@rangefitgym.com",
-        // New fields for detailed breakdown
-        planMembershipFee: planMembershipFee,
-        registrationFee: editFormData.registrationFee,
-        customRegistrationFee: editFormData.customRegistrationFee,
-        discount: editFormData.discount,
-        discountAmount: editFormData.discountAmount,
-        totalAmount: editFormData.totalAmount
-      }
-
-      await createReceipt(receiptData)
-      
-      toast.success(`Membership ${!querySnapshot.empty ? 'updated' : 'created'} successfully for ${membership.name}`)
-      onSuccess()
     } catch (error) {
       console.error('Error updating membership:', error)
       toast.error('Failed to update membership')
@@ -429,7 +582,66 @@ export default function MembershipEditPopup({
             </div>
           </div>
 
-                     {/* Membership Plans */}
+          {/* Renewal Status Warning */}
+          {membership.membershipExpiryDate && (
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 sm:p-5">
+              <label className="text-gray-300 text-sm font-medium mb-3 sm:mb-4 block">Renewal Status</label>
+              {(() => {
+                const expiryDate = membership.membershipExpiryDate
+                const daysRemaining = calculateDaysRemaining(expiryDate)
+                const canRenew = daysRemaining < 7
+                
+                return (
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <span className="text-gray-400 text-xs sm:text-sm">Current Expiry Date:</span>
+                        <p className="text-white font-semibold text-sm sm:text-base">
+                          {expiryDate.toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-gray-400 text-xs sm:text-sm">Days Remaining:</span>
+                        <p className={`font-bold text-sm sm:text-base ${
+                          daysRemaining < 7 ? 'text-green-400' : 
+                          daysRemaining < 14 ? 'text-yellow-400' : 
+                          'text-gray-300'
+                        }`}>
+                          {daysRemaining} days
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {canRenew ? (
+                      <div className="bg-green-900/20 border border-green-700/50 rounded-lg p-3">
+                        <div className="flex items-start space-x-2">
+                          <div className="text-green-400 text-sm">✅</div>
+                          <div className="text-green-200 text-xs sm:text-sm">
+                            <p className="font-semibold mb-1">Renewal Allowed</p>
+                            <p>Membership can be renewed. Selecting a plan will extend the membership from today.</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-3">
+                        <div className="flex items-start space-x-2">
+                          <div className="text-yellow-400 text-sm">⚠️</div>
+                          <div className="text-yellow-200 text-xs sm:text-sm">
+                            <p className="font-semibold mb-1">Renewal Blocked</p>
+                            <p>Membership has {daysRemaining} days remaining. Only payment details will be updated, membership will not be extended.</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
            <div>
              <label className="text-gray-300 text-sm font-medium mb-3 sm:mb-4 block">Select Membership Plan</label>
              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -498,6 +710,7 @@ export default function MembershipEditPopup({
                        type="number"
                        value={editFormData.customRegistrationFee}
                        onChange={(e) => handleCustomRegistrationFeeChange(Number(e.target.value))}
+                       onWheel={(e) => e.currentTarget.blur()}
                        min="0"
                        step="100"
                        className="w-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white text-sm focus:ring-orange-500 focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -548,6 +761,7 @@ export default function MembershipEditPopup({
                        type="number"
                        value={editFormData.discountAmount}
                        onChange={(e) => handleDiscountAmountChange(Number(e.target.value))}
+                       onWheel={(e) => e.currentTarget.blur()}
                        min="0"
                        step="100"
                        max={editFormData.membershipAmount + (editFormData.registrationFee ? editFormData.customRegistrationFee : 0)}

@@ -15,7 +15,7 @@ interface User {
   name: string
   phone?: string
   gender?: string
-  fatherName?: string
+  cnic?: string
   address?: string
   role: "receptionist" | "customer"
   status: "active" | "inactive"
@@ -116,8 +116,8 @@ export default function UserViewPopup({
                     <p className="text-white font-semibold text-sm sm:text-base">{user.gender || 'Not specified'}</p>
                   </div>
                   <div>
-                    <label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Father's Name</label>
-                    <p className="text-white font-semibold text-sm sm:text-base">{user.fatherName || 'Not specified'}</p>
+                    <label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">CNIC</label>
+                    <p className="text-white font-semibold text-sm sm:text-base">{user.cnic || 'Not specified'}</p>
                   </div>
                 </div>
               </div>

@@ -32,7 +32,7 @@ import ReceptionUserAddPopup from '@/components/admin/reception-user-add-popup'
 import { toast } from 'sonner'
 import { collection, getDocs, doc, deleteDoc, onSnapshot, query, orderBy, updateDoc, writeBatch, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
-import { getProfileImageUrl } from '@/lib/cloudinary-client'
+import { getProfileImageUrl, deleteImageFromCloudinary, extractPublicIdFromUrl } from '@/lib/cloudinary-client'
 import { updatePassword, deleteUser } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
@@ -43,7 +43,7 @@ interface UserData {
   name: string
   phone?: string
   gender?: string
-  fatherName?: string
+  cnic?: string
   address?: string
   role: "receptionist" | "customer"
   status: "active" | "inactive"
@@ -125,7 +125,7 @@ export default function ReceptionUserManagement() {
             name: userData.name || userData.displayName || 'Unknown User',
             phone: userData.phone || '',
             gender: userData.gender || userData.sex || userData.genderType || '',
-            fatherName: userData.fatherName || userData.fathersName || userData.father_name || '',
+            cnic: userData.cnic || userData.cnicNumber || userData.cnic_number || '',
             address: userData.address || userData.userAddress || userData.user_address || '',
             profileImageUrl: userData.profileImageUrl || userData.photoURL || '',
             role: userData.role,
@@ -245,7 +245,17 @@ export default function ReceptionUserManagement() {
         throw new Error('User not found')
       }
 
-      console.log('🔧 Starting user deletion process for:', userToDelete.email)
+      console.log('🔧 Starting complete user deletion process for:', userToDelete.email)
+
+      // Delete Cloudinary profile image if exists
+      if (userToDelete.profileImageUrl) {
+        const publicId = extractPublicIdFromUrl(userToDelete.profileImageUrl)
+        if (publicId) {
+          console.log('🗑️ Deleting Cloudinary image:', publicId)
+          await deleteImageFromCloudinary(publicId)
+          console.log('✅ Cloudinary image deleted')
+        }
+      }
 
       // Delete all membership records for this user
       console.log('🗑️ Deleting user membership records...')
@@ -263,32 +273,34 @@ export default function ReceptionUserManagement() {
         console.log('ℹ️ No membership records found for user')
       }
 
-      // Preserve payment records but anonymize them for privacy
-      console.log('🔒 Anonymizing user payment records...')
+      // Delete all payment records for this user (changed from anonymization)
+      console.log('🗑️ Deleting user payment records...')
       const paymentsQuery = query(collection(db, 'payments'), where('uid', '==', userId))
       const paymentsSnapshot = await getDocs(paymentsQuery)
-      
       if (!paymentsSnapshot.empty) {
         const batch = writeBatch(db)
         paymentsSnapshot.docs.forEach((doc) => {
-          // Update payment record to anonymize user data while preserving financial data
-          batch.update(doc.ref, {
-            uid: null, // Remove user reference
-            userEmail: null, // Remove email for privacy
-            userName: null, // Remove name for privacy
-            deletedAt: new Date(), // Mark as deleted
-            deletedBy: currentUser?.uid || 'receptionist', // Track who deleted
-            originalUserId: userId, // Keep reference to original user for audit purposes
-            isAnonymized: true, // Flag to indicate this record has been anonymized
-            // Add retention management fields
-            retentionExpiryDate: new Date(Date.now() + 3 * 30 * 24 * 60 * 60 * 1000), // 3 months from now
-            isArchived: false // Keep active for reporting
-          })
+          batch.delete(doc.ref)
         })
         await batch.commit()
-        console.log(`✅ Anonymized ${paymentsSnapshot.size} payment records`)
+        console.log(`✅ Deleted ${paymentsSnapshot.size} payment records`)
       } else {
         console.log('ℹ️ No payment records found for user')
+      }
+
+      // Delete all receipt records for this user (NEW)
+      console.log('🗑️ Deleting user receipt records...')
+      const receiptsQuery = query(collection(db, 'receipts'), where('userId', '==', userId))
+      const receiptsSnapshot = await getDocs(receiptsQuery)
+      if (!receiptsSnapshot.empty) {
+        const batch = writeBatch(db)
+        receiptsSnapshot.docs.forEach((doc) => {
+          batch.delete(doc.ref)
+        })
+        await batch.commit()
+        console.log(`✅ Deleted ${receiptsSnapshot.size} receipt records`)
+      } else {
+        console.log('ℹ️ No receipt records found for user')
       }
 
       // Delete from Firestore
@@ -299,8 +311,9 @@ export default function ReceptionUserManagement() {
       // Remove from local state immediately
       setUsers(prevUsers => prevUsers.filter(user => user.uid !== userId))
       
-      toast.success('User profile and membership data deleted. Payment records preserved for financial reporting.', {
-        duration: 4000,
+      toast.success('User completely deleted! All data removed from database.', {
+        description: 'User profile, memberships, payments, receipts, and images have been permanently deleted.',
+        duration: 5000,
       })
       
     } catch (error: any) {

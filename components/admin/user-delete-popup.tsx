@@ -13,7 +13,7 @@ interface User {
   name: string
   phone?: string
   gender?: string
-  fatherName?: string
+  cnic?: string
   address?: string
   role: "receptionist" | "customer"
   status: "active" | "inactive"
@@ -77,14 +77,22 @@ export default function UserDeletePopup({
               <div className="text-red-200">
                 <p className="font-semibold text-base sm:text-lg mb-2">⚠️ Warning: This action cannot be undone!</p>
                 <p className="text-red-300 text-xs sm:text-sm leading-relaxed">
-                  Deleting this user account will permanently remove all user data including:
+                  Deleting this user account will permanently remove ALL user data including:
                 </p>
                 <ul className="text-red-300/80 text-xs sm:text-sm mt-2 space-y-1">
                   <li>• User profile and personal information</li>
                   <li>• Membership and attendance records</li>
+                  <li>• Payment records and transaction history</li>
+                  <li>• Receipt documents and PDFs</li>
+                  <li>• Profile images from Cloudinary storage</li>
                   <li>• Fingerprint enrollment data</li>
-                  <li>• All associated gym activities</li>
+                  <li>• All associated gym activities and history</li>
                 </ul>
+                <div className="mt-3 p-2 bg-red-800/30 rounded-lg border border-red-600/50">
+                  <p className="text-red-200 text-xs font-semibold">
+                    ⚠️ This is a COMPLETE deletion - no data will be preserved!
+                  </p>
+                </div>
               </div>
             </div>
           </div>

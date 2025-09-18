@@ -180,7 +180,7 @@ export default function MembershipPlansPage() {
           createdAt: userDataFromFirestore?.createdAt || (user.metadata?.creationTime ? new Date(user.metadata.creationTime) : new Date()),
           lastLoginAt: userDataFromFirestore?.lastLoginAt || (user.metadata?.lastSignInTime ? new Date(user.metadata.lastSignInTime) : new Date()),
           profileImageUrl: userDataFromFirestore?.profileImageUrl || null,
-          fatherName: userDataFromFirestore?.fatherName || '',
+          cnic: userDataFromFirestore?.cnic || '',
           address: userDataFromFirestore?.address || '',
           gender: userDataFromFirestore?.gender || ''
         }

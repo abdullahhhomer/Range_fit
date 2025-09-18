@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, updateDoc, doc, writeBatch, addDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, updateDoc, doc, writeBatch, addDoc, orderBy, limit } from "firebase/firestore"
 import { db } from "./config"
 import { updateUserDocument } from "./user-management"
 
@@ -52,6 +52,28 @@ export interface OptimizedPaymentRecord {
   discountAmount?: number
 }
 
+// Helper function to get plan duration in days
+const getPlanDurationDays = (planType: string): number => {
+  switch (planType) {
+    case 'visitor':
+      return 1
+    case 'strength':
+    case 'cardio':
+    case 'combo':
+      return 30 // 1 month
+    default:
+      return 30 // Default to 1 month
+  }
+}
+
+// Helper function to calculate days remaining until membership expiry
+const calculateDaysRemaining = (endDate: Date): number => {
+  const now = new Date()
+  const timeDiff = endDate.getTime() - now.getTime()
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24))
+  return Math.max(0, daysRemaining) // Return 0 if already expired
+}
+
 // Update existing membership instead of creating new one
 export const updateExistingMembership = async (uid: string, newData: Partial<OptimizedMembershipPlan>) => {
   try {
@@ -80,32 +102,66 @@ export const updateExistingMembership = async (uid: string, newData: Partial<Opt
        
        const now = new Date()
        const currentEndDate = mostRecentMembership.endDate?.toDate?.() || mostRecentMembership.endDate
-       
-       // Always start fresh from today for renewals (don't extend from current end date)
-       const newStartDate = now
-       const newEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 days from today
-       
-       const updateData = {
-         ...newData,
-         startDate: newStartDate,
-         endDate: newEndDate,
-         updatedAt: now,
-         renewalCount: (mostRecentMembership.renewalCount || 0) + 1,
-         lastRenewalDate: now,
-         nextRenewalReminder: new Date(now.getTime() + 25 * 24 * 60 * 60 * 1000) // Reminder 5 days before expiry
-       }
+      const daysRemaining = calculateDaysRemaining(currentEndDate)
       
-      await updateDoc(membershipDocRef, updateData)
+      console.log(`📅 Membership expires in ${daysRemaining} days`)
       
-      // Also update the user document to keep it in sync
-      const userUpdateData: any = {
+      let updateData: any = {
+        ...newData,
+        updatedAt: now
+      }
+      
+      let userUpdateData: any = {
         membershipStatus: "active",
         membershipPlan: newData.planType,
         membershipAmount: newData.amount,
-        membershipStartDate: newStartDate,
-        membershipExpiryDate: newEndDate,
         lastRenewalReminder: now
       }
+      
+      // RENEWAL LOGIC: Only renew if less than 7 days remaining
+      if (daysRemaining < 7) {
+        console.log(`✅ Renewal allowed: ${daysRemaining} days remaining (< 7 days)`)
+        
+        // Calculate new dates based on plan duration
+        const planDurationDays = getPlanDurationDays(newData.planType)
+       const newStartDate = now
+        const newEndDate = new Date(now.getTime() + planDurationDays * 24 * 60 * 60 * 1000)
+       
+        updateData = {
+          ...updateData,
+         startDate: newStartDate,
+         endDate: newEndDate,
+         renewalCount: (mostRecentMembership.renewalCount || 0) + 1,
+         lastRenewalDate: now,
+          nextRenewalReminder: new Date(newEndDate.getTime() - 5 * 24 * 60 * 60 * 1000) // Reminder 5 days before expiry
+        }
+        
+        userUpdateData = {
+          ...userUpdateData,
+          membershipStartDate: newStartDate,
+          membershipExpiryDate: newEndDate
+        }
+        
+        console.log(`🔄 Membership renewed: ${newStartDate.toDateString()} to ${newEndDate.toDateString()}`)
+      } else {
+        console.log(`⚠️ Renewal blocked: ${daysRemaining} days remaining (>= 7 days)`)
+        console.log(`📝 Only updating payment details without extending membership`)
+        
+        // Keep existing dates - only update payment-related fields
+        updateData = {
+          ...updateData,
+          // Don't update startDate, endDate, renewalCount, lastRenewalDate
+          // Only update payment details
+        }
+        
+        userUpdateData = {
+          ...userUpdateData,
+          // Don't update membershipStartDate, membershipExpiryDate
+          // Only update payment-related fields
+        }
+       }
+      
+      await updateDoc(membershipDocRef, updateData)
 
       // Only add defined values to avoid Firebase errors
       if (newData.registrationFee !== undefined) userUpdateData.registrationFee = newData.registrationFee
@@ -116,8 +172,8 @@ export const updateExistingMembership = async (uid: string, newData: Partial<Opt
 
       await updateUserDocument(uid, userUpdateData)
       
-      console.log(`✅ Existing membership updated for user ${uid}`)
-      return membershipDocRef
+      console.log(`✅ Membership update completed for user ${uid}`)
+      return { membershipDocRef, wasRenewal: daysRemaining < 7, daysRemaining }
     } else {
       throw new Error(`No existing membership found for user ${uid}`)
     }
@@ -127,7 +183,148 @@ export const updateExistingMembership = async (uid: string, newData: Partial<Opt
   }
 }
 
-// Manual archival function (can be called from admin dashboard)
+// Update existing payment record instead of creating new one
+export const updateExistingPaymentRecord = async (uid: string, newData: any) => {
+  try {
+    const paymentRef = collection(db, 'payments')
+    
+    // First try to find records with orderBy (requires index)
+    let querySnapshot
+    try {
+      const q = query(paymentRef, where('uid', '==', uid), orderBy('createdAt', 'desc'), limit(1))
+      querySnapshot = await getDocs(q)
+    } catch (indexError) {
+      console.log('⚠️ Index not available, trying without orderBy')
+      // Fallback: get all records for user and sort client-side
+      const q = query(paymentRef, where('uid', '==', uid))
+      const allDocs = await getDocs(q)
+      
+      if (!allDocs.empty) {
+        // Sort by createdAt client-side
+        const sortedDocs = allDocs.docs.sort((a, b) => {
+          const aDate = a.data().createdAt?.toDate?.() || a.data().createdAt
+          const bDate = b.data().createdAt?.toDate?.() || b.data().createdAt
+          return bDate.getTime() - aDate.getTime()
+        })
+        
+        // Create a mock querySnapshot with the most recent document
+        querySnapshot = {
+          empty: false,
+          docs: [sortedDocs[0]]
+        }
+      } else {
+        querySnapshot = { empty: true, docs: [] }
+      }
+    }
+    
+    if (!querySnapshot.empty) {
+      const paymentDoc = querySnapshot.docs[0]
+      const paymentDocRef = doc(db, 'payments', paymentDoc.id)
+      
+      const updateData = {
+        ...newData,
+        updatedAt: new Date(),
+        isUpdated: true // Flag to indicate this was an update, not a new payment
+      }
+      
+      await updateDoc(paymentDocRef, updateData)
+      console.log(`✅ Updated existing payment record for user ${uid}`)
+      return paymentDocRef
+    } else {
+      // No existing payment record found - create a new one instead
+      console.log(`⚠️ No existing payment record found for user ${uid}, creating new one`)
+      
+      const newPaymentData = {
+        ...newData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isArchived: false,
+        retentionExpiryDate: new Date(Date.now() + 3 * 30 * 24 * 60 * 60 * 1000),
+        paymentMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+        paymentYear: new Date().getFullYear(),
+        paymentMonthName: new Date().toLocaleDateString('en-US', { month: 'long' }),
+        paymentQuarter: `Q${Math.ceil((new Date().getMonth() + 1) / 3)}`,
+        isUpdated: false, // Flag to indicate this was a new payment
+        createdAsFallback: true // Flag to indicate this was created because no existing record was found
+      }
+      
+      const docRef = await addDoc(paymentRef, newPaymentData)
+      console.log(`✅ Created new payment record as fallback for user ${uid}`)
+      return docRef
+    }
+  } catch (error) {
+    console.error('Error updating existing payment record:', error)
+    throw error
+  }
+}
+
+// Update existing receipt record instead of creating new one
+export const updateExistingReceiptRecord = async (userId: string, newData: any) => {
+  try {
+    const receiptRef = collection(db, 'receipts')
+    
+    // First try to find records with orderBy (requires index)
+    let querySnapshot
+    try {
+      const q = query(receiptRef, where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(1))
+      querySnapshot = await getDocs(q)
+    } catch (indexError) {
+      console.log('⚠️ Index not available, trying without orderBy')
+      // Fallback: get all records for user and sort client-side
+      const q = query(receiptRef, where('userId', '==', userId))
+      const allDocs = await getDocs(q)
+      
+      if (!allDocs.empty) {
+        // Sort by createdAt client-side
+        const sortedDocs = allDocs.docs.sort((a, b) => {
+          const aDate = a.data().createdAt?.toDate?.() || a.data().createdAt
+          const bDate = b.data().createdAt?.toDate?.() || b.data().createdAt
+          return bDate.getTime() - aDate.getTime()
+        })
+        
+        // Create a mock querySnapshot with the most recent document
+        querySnapshot = {
+          empty: false,
+          docs: [sortedDocs[0]]
+        }
+      } else {
+        querySnapshot = { empty: true, docs: [] }
+      }
+    }
+    
+    if (!querySnapshot.empty) {
+      const receiptDoc = querySnapshot.docs[0]
+      const receiptDocRef = doc(db, 'receipts', receiptDoc.id)
+      
+      const updateData = {
+        ...newData,
+        updatedAt: new Date(),
+        isUpdated: true // Flag to indicate this was an update, not a new receipt
+      }
+      
+      await updateDoc(receiptDocRef, updateData)
+      console.log(`✅ Updated existing receipt record for user ${userId}`)
+      return receiptDocRef
+    } else {
+      // No existing receipt record found - create a new one instead
+      console.log(`⚠️ No existing receipt record found for user ${userId}, creating new one`)
+      
+      const newReceiptData = {
+        ...newData,
+        createdAt: new Date(),
+        isUpdated: false, // Flag to indicate this was a new receipt
+        createdAsFallback: true // Flag to indicate this was created because no existing record was found
+      }
+      
+      const docRef = await addDoc(receiptRef, newReceiptData)
+      console.log(`✅ Created new receipt record as fallback for user ${userId}`)
+      return docRef
+    }
+  } catch (error) {
+    console.error('Error updating existing receipt record:', error)
+    throw error
+  }
+}
 export const manualArchivePaymentRecords = async () => {
   try {
     const paymentRef = collection(db, "payments")

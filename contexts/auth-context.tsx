@@ -13,7 +13,7 @@ interface UserData {
   email: string
   name: string
   phone?: string
-  fatherName?: string
+  cnic?: string
   address?: string
   gender?: "Male" | "Female" | "Other"
   fingerprintId?: string
@@ -390,7 +390,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkProfileCompletion = (userData: UserData): boolean => {
     return !!(
       userData.name?.trim() &&
-      userData.fatherName?.trim() &&
+      userData.cnic?.trim() &&
       userData.phone?.trim() &&
       userData.phone?.length === 11 &&
       userData.gender &&

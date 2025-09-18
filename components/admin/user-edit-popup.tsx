@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getProfileImageUrl } from '@/lib/cloudinary-client'
 import { X, Edit, User, Phone, MapPin, Shield, Mail, ChevronDown, Fingerprint } from 'lucide-react'
+import { toast } from 'sonner'
 import FingerprintRegistration from './fingerprint-registration'
 
 
@@ -16,7 +17,7 @@ interface User {
   name: string
   phone?: string
   gender?: string
-  fatherName?: string
+  cnic?: string
   address?: string
   role: "receptionist" | "customer"
   status: "active" | "inactive"
@@ -46,7 +47,7 @@ export default function UserEditPopup({
   const [editFormData, setEditFormData] = useState({
     name: '',
     gender: '',
-    fatherName: '',
+    cnic: '',
     email: '',
     address: '',
     phone: ''
@@ -76,7 +77,7 @@ export default function UserEditPopup({
     setEditFormData({
       name: user.name || '',
       gender: user.gender || '',
-      fatherName: user.fatherName || '',
+      cnic: user.cnic || '',
       email: user.email || '',
       address: user.address || '',
       phone: user.phone ? formatPhoneNumber(user.phone) : ''
@@ -84,12 +85,38 @@ export default function UserEditPopup({
   }, [user, formatPhoneNumber])
 
   const handleUpdate = async () => {
+    // Validate form data
+    if (!editFormData.name?.trim()) {
+      toast.error('Please enter the full name')
+      return
+    }
+    if (!editFormData.email?.trim()) {
+      toast.error('Please enter the email address')
+      return
+    }
+    if (!editFormData.gender?.trim()) {
+      toast.error('Please select a gender')
+      return
+    }
+    
+    // Phone validation (optional)
+    if (editFormData.phone?.trim() && editFormData.phone.length !== 11) {
+      toast.error('Phone number must be 11 digits')
+      return
+    }
+    
+    // CNIC validation (optional)
+    if (editFormData.cnic?.trim() && editFormData.cnic.length !== 13) {
+      toast.error('CNIC must be 13 digits')
+      return
+    }
+
     setIsUpdating(true)
     try {
       const updateData: any = {
         name: editFormData.name,
         gender: editFormData.gender,
-        fatherName: editFormData.fatherName,
+        cnic: editFormData.cnic,
         address: editFormData.address,
         phone: editFormData.phone
       }
@@ -120,18 +147,43 @@ export default function UserEditPopup({
     setGenderDropdownOpen(false)
   }
 
+  const handlePhoneChange = (value: string) => {
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, '')
+    
+    // Limit to 11 digits
+    if (digitsOnly.length <= 11) {
+      setEditFormData({...editFormData, phone: digitsOnly})
+    }
+  }
+
+  const formatCNIC = (cnic: string) => {
+    if (!cnic) return ''
+    const cleaned = cnic.replace(/\D/g, '')
+    
+    if (cleaned.length <= 5) {
+      return cleaned
+    } else if (cleaned.length <= 12) {
+      return `${cleaned.slice(0, 5)}-${cleaned.slice(5)}`
+    } else {
+      return `${cleaned.slice(0, 5)}-${cleaned.slice(5, 12)}-${cleaned.slice(12, 13)}`
+    }
+  }
+
+  const handleCNICChange = (value: string) => {
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, '')
+    
+    // Limit to 13 digits
+    if (digitsOnly.length <= 13) {
+      setEditFormData({...editFormData, cnic: digitsOnly})
+    }
+  }
+
   const handleFingerprintStatusUpdate = (newStatus: "enrolled" | "not_enrolled" | "pending") => {
     // This will be handled by the parent component when needed
     console.log('Fingerprint status updated:', newStatus)
   }
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setEditFormData(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
-  };
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
@@ -232,12 +284,13 @@ export default function UserEditPopup({
                   </div>
                   
                   <div>
-                    <label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Father's Name</label>
+                    <label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">CNIC (Optional)</label>
                     <Input
-                      value={editFormData.fatherName}
-                      onChange={(e) => setEditFormData({...editFormData, fatherName: e.target.value})}
+                      value={formatCNIC(editFormData.cnic)}
+                      onChange={(e) => handleCNICChange(e.target.value)}
                       className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-gray-500 focus:ring-gray-500/20 rounded-lg h-10 sm:h-11 text-sm sm:text-base"
-                      placeholder="Enter father's name"
+                      placeholder="XXXXX-XXXXXXX-X"
+                      maxLength={15}
                     />
                   </div>
                 </div>
@@ -263,12 +316,13 @@ export default function UserEditPopup({
                   </div>
                   
                   <div>
-                    <label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Phone Number</label>
+                    <label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Phone Number (Optional)</label>
                     <Input
-                      value={editFormData.phone}
-                      onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})}
+                      value={formatPhoneNumber(editFormData.phone)}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
                       className="bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-gray-500 focus:ring-gray-500/20 rounded-lg h-10 sm:h-11 text-sm sm:text-base"
                       placeholder="03XX XXXXXXX"
+                      maxLength={12}
                     />
                   </div>
                   
@@ -293,7 +347,7 @@ export default function UserEditPopup({
               <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-3 sm:p-4">
                 <h4 className="text-gray-200 font-bold text-base sm:text-lg mb-3 sm:mb-4 flex items-center">
                   <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-                  Address
+                  Address (Optional)
                 </h4>
                 <textarea
                   value={editFormData.address}
