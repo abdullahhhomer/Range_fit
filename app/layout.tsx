@@ -24,10 +24,20 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: '/logo.png',
-    shortcut: '/logo.png',
-    apple: '/logo.png',
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' }
+    ],
+    shortcut: '/favicon.ico',
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+    ],
+    other: [
+      { rel: 'mask-icon', url: '/safari-pinned-tab.svg', color: '#f97316' }
+    ]
   },
+  manifest: '/site.webmanifest',
   openGraph: {
     title: "Range Fit Gym",
     description: "Transform your fitness journey with Range Fit Gym - Premium equipment, expert trainers, and personalized programs.",
@@ -54,11 +64,27 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Standard favicons */}
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" href="/logo.png" />
-        <link rel="shortcut icon" type="image/png" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+        
+        {/* Apple Touch Icon */}
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        
+        {/* Android Chrome Icons */}
+        <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+        
+        {/* Web App Manifest */}
+        <link rel="manifest" href="/site.webmanifest" />
+        
+        {/* Theme Colors */}
+        <meta name="theme-color" content="#f97316" />
+        <meta name="msapplication-TileColor" content="#f97316" />
+        
         <script src="/console-filter.js" defer></script>
-        <link rel="apple-touch-icon" type="image/png" href="/logo.png" />
         {/* Preload hero video for faster loading */}
         <link 
           rel="preload" 

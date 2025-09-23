@@ -352,16 +352,21 @@ export default function RevenueReport() {
         // Get unique user IDs from payments
         const uniqueUserIds = [...new Set(paymentData.map(p => p.uid))]
         
-        // Fetch user data for all unique users
-        const usersQuery = query(collection(db, "users"), where("uid", "in", uniqueUserIds))
-        const usersSnapshot = await getDocs(usersQuery)
-        
         // Create a map of user data for fast lookup
         const usersMap = new Map()
-        usersSnapshot.docs.forEach(doc => {
-          const userData = doc.data()
-          usersMap.set(userData.uid, userData)
-        })
+        
+        // Handle Firestore 'in' operator limit of 30 values by chunking
+        const chunkSize = 30
+        for (let i = 0; i < uniqueUserIds.length; i += chunkSize) {
+          const chunk = uniqueUserIds.slice(i, i + chunkSize)
+          const usersQuery = query(collection(db, "users"), where("uid", "in", chunk))
+          const usersSnapshot = await getDocs(usersQuery)
+          
+          usersSnapshot.docs.forEach(doc => {
+            const userData = doc.data()
+            usersMap.set(userData.uid, userData)
+          })
+        }
         
         // Enhance each payment with user profile data
         for (const payment of paymentData) {
