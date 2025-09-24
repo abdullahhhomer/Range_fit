@@ -69,6 +69,8 @@ interface EnhancedPaymentRecord extends OptimizedPaymentRecord {
   profileImageUrl?: string
   registrationFee?: boolean
   customRegistrationFee?: number
+  registrationFeeAmount?: number
+  registrationFeePaid?: boolean
   discount?: boolean
   discountAmount?: number
 }
@@ -373,7 +375,13 @@ export default function RevenueReport() {
           const userData = usersMap.get(payment.uid)
           enhancedPayments.push({
             ...payment,
-            profileImageUrl: userData?.profileImageUrl
+            profileImageUrl: userData?.profileImageUrl,
+            registrationFee: (payment as any).registrationFee,
+            customRegistrationFee: (payment as any).customRegistrationFee,
+            registrationFeeAmount: (payment as any).registrationFeeAmount,
+            registrationFeePaid: (payment as any).registrationFeePaid,
+            discount: (payment as any).discount,
+            discountAmount: (payment as any).discountAmount
           })
         }
         
@@ -515,6 +523,39 @@ export default function RevenueReport() {
     return `PKR ${amount.toLocaleString()}`
   }
 
+  const getBasePlanFee = (planType: string | undefined) => {
+    if (!planType) return 0
+    
+    switch (planType.toLowerCase()) {
+      case 'strength training':
+        return 5000
+      case 'cardio':
+        return 5000
+      case 'cardio training':
+        return 5000
+      case 'strength + cardio':
+        return 7500
+      case 'monthly':
+        return 5000
+      case 'quarterly':
+        return 15000
+      case 'yearly':
+        return 60000
+      case 'daily':
+        return 200
+      case 'weekly':
+        return 1200
+      case 'bi-weekly':
+        return 2400
+      case 'semi-annual':
+        return 30000
+      case 'lifetime':
+        return 100000
+      default:
+        return 0
+    }
+  }
+
   const getPlanColor = (planType: string) => {
     const colors: Record<string, string> = {
       'Monthly': 'bg-blue-600',
@@ -576,11 +617,13 @@ export default function RevenueReport() {
 
   const exportToCSV = () => {
     // Create comprehensive report with both payments and expenses
+    // Note: This export uses the currently filtered data based on selected time period
     const reportData = []
     
     // Add summary section
     reportData.push(['REVENUE REPORT SUMMARY'])
     reportData.push(['Period', formatPeriod(selectedPeriod)])
+    reportData.push(['Time Range', timeRange === 'monthly' ? 'Monthly' : 'Yearly'])
     reportData.push(['Gross Revenue', formatCurrency(stats.total)])
     reportData.push(['Total Expenses', formatCurrency(stats.expenses)])
     reportData.push(['Net Revenue', formatCurrency(stats.netRevenue)])
@@ -590,28 +633,33 @@ export default function RevenueReport() {
     
     // Add payments section
     reportData.push(['PAYMENTS DATA'])
-    reportData.push(['Date', 'Member Name', 'Email', 'Plan Type', 'Registration Fee', 'Discount', 'Total Amount', 'Payment Method', 'Status'])
+    reportData.push(['Date', 'Member Name', 'Email', 'Plan Type', 'Plan Fee', 'Registration Fee', 'Discount', 'Total Amount', 'Payment Method'])
     
     payments.forEach(payment => {
-      // Calculate registration fee amount
-      const registrationFeeAmount = payment.planType?.toLowerCase().includes('visitor') ? '-' : 
-        (payment.customRegistrationFee && payment.customRegistrationFee > 0) ? payment.customRegistrationFee :
-        payment.registrationFee ? 5000 : '-'
+      // Calculate plan fee
+      const planFee = getBasePlanFee(payment.planType)
       
-      // Calculate discount amount
+      // Calculate registration fee amount using the same logic as membership status
+      const registrationFeeAmount = payment.planType?.toLowerCase().includes('visitor') ? '-' : 
+        ((payment as any).registrationFee && (payment as any).customRegistrationFee) ? (payment as any).customRegistrationFee : '-'
+      
+      // Calculate discount amount using the same logic as membership status
       const discountAmount = payment.planType?.toLowerCase().includes('visitor') ? '-' :
-        (payment.discountAmount && payment.discountAmount > 0) ? payment.discountAmount : '-'
+        ((payment as any).discount && (payment as any).discountAmount && (payment as any).discountAmount > 0) ? (payment as any).discountAmount : '-'
+      
+      // Use the same date logic as the table display
+      const formattedDate = payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : 'Unknown'
       
       reportData.push([
-        payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : 'Unknown',
+        formattedDate,
         payment.userName || 'Unknown',
         payment.userEmail || '',
         payment.planType,
+        planFee > 0 ? planFee : '-',
         registrationFeeAmount,
         discountAmount,
         payment.amount,
-        payment.paymentMethod,
-        payment.status
+        payment.paymentMethod
       ])
     })
     
@@ -656,11 +704,11 @@ export default function RevenueReport() {
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `complete-revenue-report-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.csv`
+    a.download = `revenue-report-${timeRange}-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     window.URL.revokeObjectURL(url)
     
-    toast.success('Complete revenue report exported successfully')
+    toast.success(`Revenue report exported successfully for ${formatPeriod(selectedPeriod)} (${timeRange})`)
   }
 
   const stats = getRevenueStats
@@ -1008,13 +1056,13 @@ export default function RevenueReport() {
                   <thead>
                     <tr className="border-b border-gray-700">
                       <th className="text-left p-3 text-gray-300 font-medium">Member</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Plan</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Registration Fee</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Discount</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Total Amount</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Payment Method</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Status</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Date</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Plan</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Plan Fee</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Registration Fee</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Discount</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Total Amount</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Payment Method</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Date</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1046,23 +1094,33 @@ export default function RevenueReport() {
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-gray-300">
+                          <div className="text-gray-300 text-center">
                             <span className="text-sm font-medium">
                               {payment.planType}
                             </span>
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-gray-300">
+                          <div className="text-gray-300 text-center">
+                            {(() => {
+                              const basePlanFee = getBasePlanFee(payment.planType)
+                              return basePlanFee > 0 ? (
+                                <span className="text-sm font-medium text-orange-400">
+                                  PKR {basePlanFee.toLocaleString()}
+                                </span>
+                              ) : (
+                                <span className="text-gray-500 text-sm">-</span>
+                              )
+                            })()}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-gray-300 text-center">
                             {payment.planType?.toLowerCase().includes('visitor') ? (
                               <span className="text-gray-500 text-sm">-</span>
-                            ) : payment.customRegistrationFee && payment.customRegistrationFee > 0 ? (
-                              <span className="text-sm font-medium">
-                                PKR {payment.customRegistrationFee.toLocaleString()}
-                              </span>
-                            ) : payment.registrationFee ? (
-                              <span className="text-sm font-medium">
-                                PKR 5,000
+                            ) : (payment as any).registrationFee && (payment as any).customRegistrationFee ? (
+                              <span className="text-sm font-medium text-blue-400">
+                                PKR {(payment as any).customRegistrationFee.toLocaleString()}
                               </span>
                             ) : (
                               <span className="text-gray-500 text-sm">-</span>
@@ -1070,12 +1128,12 @@ export default function RevenueReport() {
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-gray-300">
+                          <div className="text-gray-300 text-center">
                             {payment.planType?.toLowerCase().includes('visitor') ? (
                               <span className="text-gray-500 text-sm">-</span>
-                            ) : payment.discountAmount && payment.discountAmount > 0 ? (
+                            ) : (payment as any).discount && (payment as any).discountAmount && (payment as any).discountAmount > 0 ? (
                               <span className="text-sm font-medium text-green-400">
-                                PKR {payment.discountAmount.toLocaleString()}
+                                PKR {(payment as any).discountAmount.toLocaleString()}
                               </span>
                             ) : (
                               <span className="text-gray-500 text-sm">-</span>
@@ -1083,34 +1141,25 @@ export default function RevenueReport() {
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-gray-300">
-                            <span className="text-sm font-medium">
+                          <div className="text-gray-300 text-center">
+                            <span className="text-sm font-medium text-white">
                               PKR {payment.amount.toLocaleString()}
                             </span>
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-gray-300">
+                          <div className="text-gray-300 text-center">
                             <span className="text-sm font-medium">
                             {payment.paymentMethod}
                             </span>
                           </div>
                         </td>
                         <td className="p-3">
-                          <Badge className={
-                            payment.status === 'completed' ? 'bg-green-600' :
-                            payment.status === 'pending' ? 'bg-yellow-600' :
-                            'bg-red-600'
-                          }>
-                            {payment.status}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-gray-300">
-                            <div className="flex items-center space-x-1">
+                          <div className="text-gray-300 text-center">
+                            <div className="flex items-center justify-center space-x-1">
                               <Calendar className="h-3 w-3" />
                               <span className="text-sm">
-                            {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : 'Unknown'}
+                                {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : 'Unknown'}
                               </span>
                             </div>
                           </div>
@@ -1149,18 +1198,11 @@ export default function RevenueReport() {
                           disabled={isLoadingMore}
                           className={`px-6 py-2 rounded-lg transition-all duration-200 ${
                             isLoadingMore 
-                              ? 'bg-orange-400 cursor-not-allowed' 
+                              ? 'bg-gray-500 cursor-not-allowed opacity-50' 
                               : 'bg-orange-600 hover:bg-orange-700'
                           } text-white flex items-center justify-center gap-2`}
                         >
-                          {isLoadingMore ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            'Show Less'
-                          )}
+                          Show Less
                         </Button>
                       )}
                     </div>

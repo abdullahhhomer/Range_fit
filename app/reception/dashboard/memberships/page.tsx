@@ -858,7 +858,14 @@ export default function ReceptionMembershipsManagement() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">Amount:</span>
-                          <span className="text-white">Rs. {request.amount?.toLocaleString()}</span>
+                          <span className="text-white">
+                            {(() => {
+                              // Clean the amount - remove any non-numeric characters except decimal point
+                              const cleanAmount = String(request.amount || 0).replace(/[^0-9.]/g, '')
+                              const numericAmount = parseFloat(cleanAmount) || 0
+                              return `Rs. ${numericAmount.toLocaleString()}`
+                            })()}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-400">Payment:</span>
@@ -1063,9 +1070,22 @@ export default function ReceptionMembershipsManagement() {
                                {membership.totalAmount !== undefined && membership.totalAmount !== null ? (
                                  <div className="flex items-center space-x-2">
                                    <span className="text-sm font-medium">
-                                     Rs. {membership.totalAmount.toLocaleString()}
+                                     {(() => {
+                                       // Debug the actual value
+                                       console.log('Amount debug:', {
+                                         totalAmount: membership.totalAmount,
+                                         type: typeof membership.totalAmount,
+                                         stringValue: String(membership.totalAmount)
+                                       })
+                                       
+                                       // Clean the amount - remove any non-numeric characters except decimal point
+                                       const cleanAmount = String(membership.totalAmount).replace(/[^0-9.]/g, '')
+                                       const numericAmount = parseFloat(cleanAmount) || 0
+                                       
+                                       return `Rs. ${numericAmount.toLocaleString()}`
+                                     })()}
                                    </span>
-                                   {membership.registrationFee && (
+                                   {membership.registrationFee && membership.customRegistrationFee && membership.customRegistrationFee > 0 && (
                                      <Badge className="bg-blue-600 text-xs">+Reg Fee</Badge>
                                    )}
                                    {membership.discount && membership.discountAmount && membership.discountAmount > 0 && (
