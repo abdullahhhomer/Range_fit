@@ -114,6 +114,15 @@ export {
   type MonthlyExpenseSummary
 } from './expense-management'
 
+// Attendance management
+export {
+  getAllAttendanceRecords,
+  getAttendanceByDateRange,
+  onAttendanceRecordsChange,
+  getTotalUsersCount,
+  type AttendanceRecord
+} from './attendance-management'
+
 // Utilities
 export {
   fixAdminCreatedUsers,

@@ -140,5 +140,20 @@ service cloud.firestore {
     match /expenses/{document=**} {
       allow read: if isAdminOrReceptionist();
     }
+    
+    // Attendance collection
+    match /attendance/{attendanceId} {
+      // Allow users to read their own attendance records
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.user_id;
+      
+      // Allow admin and receptionist users to read and write all attendance records
+      allow read, write: if isAdminOrReceptionist();
+    }
+    
+    // Allow users to query their own attendance and admins/receptionists to query all
+    match /attendance/{document=**} {
+      allow read: if isAuthenticated() && 
+        (isAdminOrReceptionist() || resource.data.user_id == request.auth.uid);
+    }
   }
 }
