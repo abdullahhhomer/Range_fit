@@ -51,7 +51,6 @@ interface UserData {
   lastLoginAt?: Date
   profileComplete: boolean
   profileImageUrl?: string
-  fingerprintStatus?: "enrolled" | "not_enrolled" | "pending"
   deletedAt?: Date
   deletedBy?: string
   isDeleted?: boolean
@@ -133,7 +132,6 @@ export default function ReceptionUserManagement() {
             createdAt: userData.createdAt?.toDate() || new Date(),
             lastLoginAt: userData.lastLoginAt?.toDate(),
             profileComplete: userData.profileComplete || false,
-            fingerprintStatus: userData.fingerprintStatus || 'not_enrolled',
             deletedAt: userData.deletedAt?.toDate(),
             deletedBy: userData.deletedBy,
             isDeleted: userData.isDeleted || false
@@ -221,19 +219,6 @@ export default function ReceptionUserManagement() {
       return `${cleaned.slice(0, 4)} ${cleaned.slice(4)}`
     }
     return cleaned
-  }
-
-  const getFingerprintStatusBadge = (status: string) => {
-    switch (status) {
-      case 'enrolled':
-        return <Badge className="bg-green-600">Enrolled</Badge>
-      case 'not_enrolled':
-        return <Badge className="bg-red-600">Not Enrolled</Badge>
-      case 'pending':
-        return <Badge className="bg-yellow-600">Pending</Badge>
-      default:
-        return <Badge className="bg-gray-600">{status}</Badge>
-    }
   }
 
   const handleDeleteUser = async (userId: string) => {
@@ -568,7 +553,6 @@ export default function ReceptionUserManagement() {
                       <th className="text-left p-3 text-gray-300 font-medium">Member ID</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Role</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Status</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Fingerprint Status</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Last Login</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Actions</th>
                     </tr>
@@ -606,9 +590,6 @@ export default function ReceptionUserManagement() {
                         </td>
                         <td className="p-3">
                           {getStatusBadge(user.status)}
-                        </td>
-                        <td className="p-3">
-                          {getFingerprintStatusBadge(user.fingerprintStatus || 'not_enrolled')}
                         </td>
                         <td className="p-3">
                           <div className="text-gray-300">
@@ -1037,8 +1018,6 @@ export default function ReceptionUserManagement() {
 
                       <th className="text-left p-3 text-gray-300 font-medium">Status</th>
 
-                      <th className="text-left p-3 text-gray-300 font-medium">Fingerprint Status</th>
-
                       <th className="text-left p-3 text-gray-300 font-medium">Last Login</th>
 
                       <th className="text-left p-3 text-gray-300 font-medium">Actions</th>
@@ -1112,12 +1091,6 @@ export default function ReceptionUserManagement() {
                         <td className="p-3">
 
                           {getStatusBadge(user.status)}
-
-                        </td>
-
-                        <td className="p-3">
-
-                          {getFingerprintStatusBadge(user.fingerprintStatus || 'not_enrolled')}
 
                         </td>
 

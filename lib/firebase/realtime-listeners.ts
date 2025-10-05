@@ -168,6 +168,7 @@ export const onDashboardStatsChange = (callback: (stats: any) => void) => {
   const membershipsRef = collection(db, "memberships")
   const paymentsRef = collection(db, "payments")
   const membershipRequestsRef = collection(db, "membershipRequests")
+  const attendanceRef = collection(db, "attendance")
   
   let stats = {
     totalUsers: 0,
@@ -261,7 +262,39 @@ export const onDashboardStatsChange = (callback: (stats: any) => void) => {
     callback({ ...stats })
   })
   
-  listeners = [usersListener, membershipsListener, paymentsListener, requestsListener]
+  // Attendance listener - Calculate attendance rate for today
+  const attendanceListener = onSnapshot(attendanceRef, (snapshot) => {
+    try {
+      const attendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[]
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      
+      // Count today's attendance
+      const todayAttendance = attendances.filter(attendance => {
+        const attendanceDate = attendance.date?.toDate?.() || new Date(attendance.date)
+        return attendanceDate >= today && attendanceDate < tomorrow && attendance.present === true
+      }).length
+      
+      // Calculate attendance rate as percentage
+      if (stats.activeMemberships > 0) {
+        stats.attendanceRate = Math.round((todayAttendance / stats.activeMemberships) * 100)
+      } else {
+        stats.attendanceRate = 0
+      }
+      
+      callback({ ...stats })
+    } catch (error) {
+      console.error('Error in attendance listener:', error)
+      callback({ ...stats })
+    }
+  }, (error) => {
+    console.error('Attendance listener error:', error)
+    callback({ ...stats })
+  })
+  
+  listeners = [usersListener, membershipsListener, paymentsListener, requestsListener, attendanceListener]
   
   // Return unsubscribe function
   return () => {
@@ -276,6 +309,7 @@ export const onReceptionDashboardStatsChange = (callback: (stats: any) => void) 
   const membershipsRef = collection(db, "memberships")
   const paymentsRef = collection(db, "payments")
   const membershipRequestsRef = collection(db, "membershipRequests")
+  const attendanceRef = collection(db, "attendance")
   
   let stats = {
     totalUsers: 0,
@@ -381,7 +415,39 @@ export const onReceptionDashboardStatsChange = (callback: (stats: any) => void) 
     callback({ ...stats })
   })
   
-  listeners = [usersListener, membershipsListener, paymentsListener, requestsListener]
+  // Attendance listener - Calculate attendance rate for today
+  const attendanceListener = onSnapshot(attendanceRef, (snapshot) => {
+    try {
+      const attendances = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[]
+      const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      
+      // Count today's attendance
+      const todayAttendance = attendances.filter(attendance => {
+        const attendanceDate = attendance.date?.toDate?.() || new Date(attendance.date)
+        return attendanceDate >= today && attendanceDate < tomorrow && attendance.present === true
+      }).length
+      
+      // Calculate attendance rate as percentage
+      if (stats.activeMemberships > 0) {
+        stats.attendanceRate = Math.round((todayAttendance / stats.activeMemberships) * 100)
+      } else {
+        stats.attendanceRate = 0
+      }
+      
+      callback({ ...stats })
+    } catch (error) {
+      console.error('Error in attendance listener:', error)
+      callback({ ...stats })
+    }
+  }, (error) => {
+    console.error('Attendance listener error:', error)
+    callback({ ...stats })
+  })
+  
+  listeners = [usersListener, membershipsListener, paymentsListener, requestsListener, attendanceListener]
   
   // Return unsubscribe function
   return () => {

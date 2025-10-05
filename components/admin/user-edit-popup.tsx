@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getProfileImageUrl } from '@/lib/cloudinary-client'
-import { X, Edit, User, Phone, MapPin, Shield, Mail, ChevronDown, Fingerprint } from 'lucide-react'
+import { X, Edit, User, Phone, MapPin, Shield, Mail, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
-import FingerprintRegistration from './fingerprint-registration'
 
 
 interface User {
@@ -25,7 +24,6 @@ interface User {
   lastLoginAt?: Date
   profileComplete: boolean
   profileImageUrl?: string
-  fingerprintStatus?: "enrolled" | "not_enrolled" | "pending"
   deletedAt?: Date
   deletedBy?: string
   isDeleted?: boolean
@@ -54,7 +52,6 @@ export default function UserEditPopup({
   })
   const [isUpdating, setIsUpdating] = useState(false)
   const [genderDropdownOpen, setGenderDropdownOpen] = useState(false)
-  const [showFingerprintRegistration, setShowFingerprintRegistration] = useState(false)
   
   // Ref for the popup container to handle click outside
   const popupRef = useRef<HTMLDivElement>(null)
@@ -178,11 +175,6 @@ export default function UserEditPopup({
     if (digitsOnly.length <= 13) {
       setEditFormData({...editFormData, cnic: digitsOnly})
     }
-  }
-
-  const handleFingerprintStatusUpdate = (newStatus: "enrolled" | "not_enrolled" | "pending") => {
-    // This will be handled by the parent component when needed
-    console.log('Fingerprint status updated:', newStatus)
   }
 
   return (
@@ -325,20 +317,6 @@ export default function UserEditPopup({
                       maxLength={12}
                     />
                   </div>
-                  
-
-                  
-                  <div>
-                    <label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Fingerprint Registration</label>
-                    <Button
-                      type="button"
-                      onClick={() => setShowFingerprintRegistration(true)}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors h-10 sm:h-11 flex items-center space-x-2 w-full text-sm sm:text-base"
-                    >
-                      <Fingerprint className="w-4 h-4" />
-                      <span>Register Fingerprint</span>
-                    </Button>
-                  </div>
                 </div>
               </div>
 
@@ -386,17 +364,6 @@ export default function UserEditPopup({
           </div>
         </div>
       </div>
-      
-      {showFingerprintRegistration && (
-        <FingerprintRegistration
-          userId={user.uid}
-          userEmail={user.email}
-          userName={user.name}
-          currentStatus={user.fingerprintStatus as "enrolled" | "not_enrolled" | "pending"}
-          onStatusUpdate={handleFingerprintStatusUpdate}
-          onClose={() => setShowFingerprintRegistration(false)}
-        />
-      )}
     </div>
   )
 }

@@ -120,6 +120,7 @@ export {
   getAttendanceByDateRange,
   onAttendanceRecordsChange,
   getTotalUsersCount,
+  addManualAttendanceRecord,
   type AttendanceRecord
 } from './attendance-management'
 

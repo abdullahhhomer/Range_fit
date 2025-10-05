@@ -8,9 +8,7 @@ import {
   Hash, 
   Calendar, 
   Clock, 
-  Trophy, 
   User, 
-  Fingerprint,
   TrendingUp,
   CreditCard,
   CheckCircle,
@@ -146,13 +144,6 @@ export function MemberInfoCard({ user, currentMembership, membershipUpdated }: M
     }
   }, [currentMembership, currentTime])
 
-  // TODO: Implement attendance streak calculation when attendance system is ready
-  // const getAttendanceStreak = () => {
-  //   // This will calculate consecutive days of gym attendance
-  //   // For now, showing "Not Registered" as placeholder
-  //   return 'Not Registered'
-  // }
-
   return (
     <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700">
       <CardHeader className="pb-4">
@@ -237,17 +228,6 @@ export function MemberInfoCard({ user, currentMembership, membershipUpdated }: M
             </div>
           </div>
 
-          {/* Attendance Streak */}
-          <div className="flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg">
-            <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-green-400 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-gray-400 text-xs sm:text-sm">Attendance Streak</p>
-              <Badge className="bg-orange-600 hover:bg-orange-700 text-white text-xs">
-                Not Registered
-              </Badge>
-            </div>
-          </div>
-
           {/* Membership Status */}
           <div className={`flex items-start space-x-3 p-3 rounded-lg transition-all duration-300 ${
             membershipUpdated && currentMembership?.status === "active" 
@@ -302,23 +282,6 @@ export function MemberInfoCard({ user, currentMembership, membershipUpdated }: M
                   Amount: Rs. {currentMembership.amount?.toLocaleString()}
                 </p>
               )}
-            </div>
-          </div>
-
-          {/* Fingerprint Status */}
-          <div className="flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg">
-            <Fingerprint className="h-4 w-4 sm:h-5 sm:w-5 text-orange-400 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <p className="text-gray-400 text-xs sm:text-sm">Fingerprint</p>
-              <Badge 
-                className={
-                  user?.fingerprintId 
-                    ? "bg-green-600 hover:bg-green-700 text-white text-xs"
-                    : "bg-gray-600 hover:bg-gray-700 text-white text-xs"
-                }
-              >
-                {user?.fingerprintId ? 'Enrolled' : 'Not Enrolled'}
-              </Badge>
             </div>
           </div>
 

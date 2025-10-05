@@ -21,7 +21,6 @@ interface User {
   lastLoginAt?: Date
   profileComplete: boolean
   profileImageUrl?: string
-  fingerprintStatus?: "enrolled" | "not_enrolled" | "pending"
   deletedAt?: Date
   deletedBy?: string
   isDeleted?: boolean
@@ -85,7 +84,6 @@ export default function UserDeletePopup({
                   <li>• Payment records and transaction history</li>
                   <li>• Receipt documents and PDFs</li>
                   <li>• Profile images from Cloudinary storage</li>
-                  <li>• Fingerprint enrollment data</li>
                   <li>• All associated gym activities and history</li>
                 </ul>
                 <div className="mt-3 p-2 bg-red-800/30 rounded-lg border border-red-600/50">

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import AttendanceAddPopup from '@/components/admin/attendance-add-popup'
 import { 
   Search, 
   Download,
@@ -16,7 +17,8 @@ import {
   Users,
   Activity,
   Calendar,
-  Clock
+  Clock,
+  Plus
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { 
@@ -47,6 +49,7 @@ export default function AttendanceManagement() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('today')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [usersData, setUsersData] = useState<Map<string, any>>(new Map())
+  const [showAddPopup, setShowAddPopup] = useState(false)
 
   // Fetch total users count
   useEffect(() => {
@@ -360,7 +363,14 @@ export default function AttendanceManagement() {
               <p className="text-gray-400 text-lg max-w-2xl mx-auto">
                 Monitor and manage gym attendance, check-ins, and member activity
               </p>
-              <div className="flex justify-center">
+              <div className="flex justify-center gap-3">
+                <Button 
+                  onClick={() => setShowAddPopup(true)}
+                  className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Record
+                </Button>
                 <Button 
                   onClick={handleExport}
                   className="bg-orange-600 hover:bg-orange-700 text-white flex items-center gap-2"
@@ -535,6 +545,17 @@ export default function AttendanceManagement() {
           </Card>
         </div>
         </div>
+
+        {/* Add Attendance Popup */}
+        {showAddPopup && (
+          <AttendanceAddPopup
+            onClose={() => setShowAddPopup(false)}
+            onAttendanceAdded={() => {
+              // The real-time listener will automatically update the records
+              toast.success('Attendance record added successfully')
+            }}
+          />
+        )}
       </AdminDashboardLayout>
     </ProtectedRoute>
   )

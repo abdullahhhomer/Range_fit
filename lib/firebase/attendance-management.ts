@@ -5,7 +5,9 @@ import {
   getDocs,
   onSnapshot,
   Timestamp,
-  orderBy
+  orderBy,
+  addDoc,
+  serverTimestamp
 } from 'firebase/firestore'
 import { db } from './config'
 
@@ -108,6 +110,49 @@ export async function getTotalUsersCount(): Promise<number> {
   } catch (error) {
     console.error('Error getting total users count:', error)
     return 0
+  }
+}
+
+/**
+ * Add a manual attendance record
+ */
+export async function addManualAttendanceRecord(userId: string, memberId: string): Promise<string> {
+  try {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    // Check if attendance already exists for today
+    const attendanceRef = collection(db, 'attendance')
+    const todayStart = Timestamp.fromDate(today)
+    const todayEnd = Timestamp.fromDate(new Date(today.getTime() + 24 * 60 * 60 * 1000))
+    
+    const existingQuery = query(
+      attendanceRef,
+      where('user_id', '==', memberId),
+      where('date', '>=', todayStart),
+      where('date', '<', todayEnd)
+    )
+    
+    const existingSnapshot = await getDocs(existingQuery)
+    
+    if (!existingSnapshot.empty) {
+      throw new Error('Attendance already marked for today')
+    }
+    
+    // Create new attendance record
+    const attendanceData = {
+      user_id: memberId,
+      date: Timestamp.fromDate(today),
+      check_in: Timestamp.now(),
+      present: true,
+      createdAt: serverTimestamp()
+    }
+    
+    const docRef = await addDoc(attendanceRef, attendanceData)
+    return docRef.id
+  } catch (error) {
+    console.error('Error adding manual attendance record:', error)
+    throw error
   }
 }
 

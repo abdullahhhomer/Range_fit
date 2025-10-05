@@ -26,7 +26,6 @@ import {
   AlertTriangle,
   Users,
   Crop,
-  Fingerprint,
   Calendar,
   Hash,
   Clock,
@@ -54,7 +53,6 @@ export default function ReceptionSettingsPage() {
     cnic: "",
     address: "",
     gender: "" as "Male" | "Female" | "Other" | "",
-    fingerprintId: "",
     profileImageUrl: "" as string | null | undefined,
   })
   
@@ -128,7 +126,6 @@ export default function ReceptionSettingsPage() {
             cnic: userData.cnic || "",
             address: userData.address || "",
             gender: userData.gender || "",
-            fingerprintId: userData.fingerprintId || "",
             profileImageUrl: userData.profileImageUrl || null,
           })
           
@@ -216,7 +213,6 @@ export default function ReceptionSettingsPage() {
         cnic: fullUserData.cnic || "",
         address: fullUserData.address || "",
         gender: fullUserData.gender || "",
-        fingerprintId: fullUserData.fingerprintId || "",
         profileImageUrl: fullUserData.profileImageUrl || "",
       })
       // Reset gender locked state when canceling
@@ -402,53 +398,6 @@ export default function ReceptionSettingsPage() {
           />
         </div>
 
-
-
-        <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 mb-4 sm:mb-6">
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-white flex items-center space-x-2 text-lg sm:text-xl">
-              <Fingerprint className="h-4 w-4 sm:h-5 sm:w-5 text-orange-400" />
-              <span>Fingerprint Status</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex-1">
-                <p className="text-white font-medium mb-2 text-sm sm:text-base">Biometric Access</p>
-                <p className="text-gray-400 text-xs sm:text-sm mb-4">
-                  {profileData.fingerprintId 
-                    ? "Your fingerprint is enrolled for secure gym access" 
-                    : "Visit the gym reception to register your fingerprint. This service is managed by gym staff for security purposes."
-                  }
-                </p>
-                {profileData.fingerprintId && (
-                  <div className="bg-gray-700/50 rounded-lg p-3">
-                    <Label className="text-gray-300 text-xs sm:text-sm">Fingerprint ID</Label>
-                    <div className="text-white font-mono text-xs sm:text-sm mt-1 break-all">{profileData.fingerprintId}</div>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center space-x-2 flex-shrink-0">
-                {profileData.fingerprintId ? (
-                  <div className="flex items-center space-x-2 text-green-400">
-                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="text-xs sm:text-sm">Enrolled</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center space-y-2">
-                    <div className="flex items-center space-x-2 text-gray-400">
-                      <XCircle className="h-4 w-4 sm:h-5 sm:w-5" />
-                      <span className="text-xs sm:text-sm">Not Enrolled</span>
-                    </div>
-                    <div className="text-xs text-orange-400 text-center">
-                      Visit gym reception
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Profile Information */}
         <Card className="bg-gray-800/50 backdrop-blur-sm border-gray-700 mb-4 sm:mb-6">

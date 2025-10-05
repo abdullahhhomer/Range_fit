@@ -1059,6 +1059,7 @@ export default function RevenueReport() {
                       <th className="text-center p-3 text-gray-300 font-medium">Plan</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Plan Fee</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Registration Fee</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Trainer Fee</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Discount</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Total Amount</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Payment Method</th>
@@ -1124,6 +1125,19 @@ export default function RevenueReport() {
                               </span>
                             ) : (
                               <span className="text-gray-500 text-sm">-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-gray-300 text-center">
+                            {payment.planType?.toLowerCase().includes('visitor') ? (
+                              <span className="text-gray-500 text-sm">-</span>
+                            ) : (payment as any).trainingFee && (payment as any).trainersFee && (payment as any).trainersFee > 0 ? (
+                              <span className="text-sm font-medium text-purple-400">
+                                PKR {(payment as any).trainersFee.toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-gray-500 text-sm">0</span>
                             )}
                           </div>
                         </td>

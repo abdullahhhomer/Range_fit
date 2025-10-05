@@ -16,7 +16,6 @@ interface UserData {
   cnic?: string
   address?: string
   gender?: "Male" | "Female" | "Other"
-  fingerprintId?: string
   profileImageUrl?: string | null
   role: "admin" | "receptionist" | "customer"
   createdAt: Date

@@ -25,7 +25,6 @@ export function CustomerDashboardLayout({ children }: CustomerDashboardLayoutPro
     { name: "Dashboard", href: "/customer/dashboard", icon: LayoutDashboard },
     { name: "My Plan", href: "/customer/dashboard/plan", icon: CreditCard },
     { name: "Receipts", href: "/customer/dashboard/receipts", icon: Receipt },
-    { name: "Attendance", href: "/customer/dashboard/attendance", icon: Calendar }, // Added attendance navigation link
     { name: "Profile", href: "/customer/dashboard/profile", icon: User },
   ]
 

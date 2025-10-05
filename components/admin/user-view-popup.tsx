@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getProfileImageUrl } from '@/lib/cloudinary-client'
-import { X, User, Phone, MapPin, Shield, Calendar, Fingerprint } from 'lucide-react'
+import { X, User, Phone, MapPin, Shield, Calendar } from 'lucide-react'
 
 
 interface User {
@@ -23,7 +23,6 @@ interface User {
   lastLoginAt?: Date
   profileComplete: boolean
   profileImageUrl?: string
-  fingerprintStatus?: "enrolled" | "not_enrolled" | "pending"
   deletedAt?: Date
   deletedBy?: string
   isDeleted?: boolean
@@ -156,20 +155,6 @@ export default function UserViewPopup({
                      </div>
                    </div>
                  </div>
-                                   <div>
-                    <label className="text-gray-300 text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Fingerprint Status</label>
-                    <div className="mt-1">
-                      {user.fingerprintStatus === 'enrolled' ? (
-                        <Badge className="bg-green-600 text-xs">Enrolled</Badge>
-                      ) : user.fingerprintStatus === 'pending' ? (
-                        <Badge className="bg-yellow-600 text-xs">Pending</Badge>
-                      ) : (
-                        <Badge className="bg-red-600 text-xs">Not Enrolled</Badge>
-                      )}
-                    </div>
-                  </div>
-                  
-                  
               </div>
 
               {/* Address */}
