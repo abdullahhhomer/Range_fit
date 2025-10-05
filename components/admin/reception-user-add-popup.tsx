@@ -4,15 +4,12 @@ import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { X, UserPlus, Mail, Phone, User, MapPin, Shield, ChevronDown, CalendarIcon } from 'lucide-react'
+import { X, UserPlus, Mail, Phone, User, MapPin, Shield, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { collection, addDoc, serverTimestamp, query, where, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore'
 import { createUserWithEmailAndPassword, signOut, getAuth } from 'firebase/auth'
 import { initializeApp } from 'firebase/app'
 import { db, auth, generateUniqueMemberId } from '@/lib/firebase'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { format } from 'date-fns'
 
 // Create a separate Firebase app instance for receptionist user creation to avoid disrupting receptionist session
 const receptionistFirebaseConfig = {
@@ -45,11 +42,6 @@ export default function ReceptionUserAddPopup({ onClose, onUserAdded }: Receptio
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [genderDropdownOpen, setGenderDropdownOpen] = useState(false)
-  
-  // Custom expiry date states
-  const [useCustomExpiryDate, setUseCustomExpiryDate] = useState(false)
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [calculatedDays, setCalculatedDays] = useState(30)
   
   // Ref for the popup container to handle click outside
   const popupRef = useRef<HTMLDivElement>(null)
@@ -138,62 +130,6 @@ export default function ReceptionUserAddPopup({ onClose, onUserAdded }: Receptio
   // Handle dropdown close when clicking outside
   const handleGenderDropdownClose = () => {
     setGenderDropdownOpen(false)
-  }
-
-  // Handle date selection for custom expiry
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date)
-    
-    if (date) {
-      const today = new Date()
-      const currentMonth = today.getMonth()
-      const currentYear = today.getFullYear()
-      const selectedMonth = date.getMonth()
-      const selectedYear = date.getFullYear()
-      const currentDay = today.getDate()
-      const selectedDay = date.getDate()
-      
-      // Check if date is from a previous month or year
-      if (selectedYear < currentYear || (selectedYear === currentYear && selectedMonth < currentMonth)) {
-        // Previous month/year - set remaining days to 0 (expired)
-        setCalculatedDays(0)
-      } else if (selectedYear === currentYear && selectedMonth === currentMonth) {
-        // Same month - check if it's today or another day
-        if (currentDay === selectedDay) {
-          // If today is selected, calculate hours until midnight
-          const now = new Date()
-          const midnight = new Date(now)
-          midnight.setHours(23, 59, 59, 999)
-          const hoursLeft = Math.ceil((midnight.getTime() - now.getTime()) / (1000 * 60 * 60))
-          setCalculatedDays(hoursLeft)
-        } else if (selectedDay < currentDay) {
-          // Past date in current month - set to 0 (expired)
-          setCalculatedDays(0)
-        } else {
-          // Future date in current month
-          let remainingDays = 30 - (currentDay + (30 - selectedDay))
-          remainingDays = Math.max(1, Math.min(30, remainingDays))
-          setCalculatedDays(remainingDays)
-        }
-      } else {
-        // Future month - calculate normally
-        let remainingDays = 30 - (currentDay - selectedDay)
-        if (selectedDay > currentDay) {
-          remainingDays = 30 - (currentDay + (30 - selectedDay))
-        }
-        remainingDays = Math.max(1, Math.min(30, remainingDays))
-        setCalculatedDays(remainingDays)
-      }
-    }
-  }
-
-  // Handle custom expiry toggle
-  const handleCustomExpiryToggle = (checked: boolean) => {
-    setUseCustomExpiryDate(checked)
-    if (!checked) {
-      setSelectedDate(undefined)
-      setCalculatedDays(30)
-    }
   }
 
   const validateForm = () => {
@@ -610,116 +546,6 @@ export default function ReceptionUserAddPopup({ onClose, onUserAdded }: Receptio
                   className="bg-gray-700 border-gray-600 text-white h-12 text-base"
                 />
               </div>
-            </div>
-          </div>
-
-          {/* Custom Expiry Date Section */}
-          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 sm:p-5">
-            <label className="text-gray-300 text-sm font-medium mb-3 sm:mb-4 block">Membership Duration</label>
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-                <input
-                  type="checkbox"
-                  id="customExpiryDate"
-                  checked={useCustomExpiryDate}
-                  onChange={(e) => handleCustomExpiryToggle(e.target.checked)}
-                  className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
-                />
-                <div className="flex-1">
-                  <label htmlFor="customExpiryDate" className="font-medium cursor-pointer text-sm sm:text-base text-white">
-                    Include Custom Expiry Date
-                  </label>
-                  <p className="text-gray-400 text-xs sm:text-sm">Backdate or adjust membership expiry for existing users</p>
-                </div>
-              </div>
-              
-              {/* Date Picker and Calculation */}
-              {useCustomExpiryDate && (
-                <div className="mt-4 pl-0 sm:pl-8 space-y-4">
-                  <div>
-                    <label className="text-gray-300 text-sm font-medium mb-2 block">Select Expiry Day</label>
-                    <p className="text-gray-400 text-xs mb-3">Choose the day when the membership should expire</p>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={`w-full sm:w-64 justify-start text-left font-normal bg-gray-700 border-gray-600 text-white hover:bg-gray-600 hover:text-white ${
-                            !selectedDate && "text-gray-400"
-                          }`}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 bg-gray-800 border-gray-700" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={handleDateSelect}
-                          initialFocus
-                          className="bg-gray-800 text-white"
-                          disabled={(date) => {
-                            const today = new Date()
-                            today.setHours(0, 0, 0, 0)
-                            const maxDate = new Date(today)
-                            maxDate.setDate(today.getDate() + 30)
-                            
-                            // Only disable dates more than 30 days from today
-                            return date > maxDate
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  
-                  {/* Real-time Days/Hours Calculation Display */}
-                  <div className={`border rounded-lg p-4 ${calculatedDays === 0 ? 'bg-red-900/20 border-red-700/50' : 'bg-blue-900/20 border-blue-700/50'}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className={`font-semibold text-sm mb-1 ${calculatedDays === 0 ? 'text-red-200' : 'text-blue-200'}`}>Calculated Membership Duration</p>
-                        <p className="text-gray-400 text-xs">Based on selected date: {selectedDate ? format(selectedDate, "dd/MM") : "Not selected"}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-bold text-3xl ${calculatedDays === 0 ? 'text-red-400' : 'text-blue-400'}`}>{calculatedDays}</p>
-                        <p className="text-gray-400 text-xs">
-                          {calculatedDays === 0 
-                            ? 'Expired' 
-                            : selectedDate && selectedDate.getDate() === new Date().getDate() 
-                              ? 'hours' 
-                              : 'days'
-                          }
-                        </p>
-                      </div>
-                    </div>
-                    <div className={`mt-3 pt-3 border-t ${calculatedDays === 0 ? 'border-red-700/30' : 'border-blue-700/30'}`}>
-                      <p className="text-gray-400 text-xs">
-                        {calculatedDays === 0 
-                          ? 'Previous month or past date selected - Membership expired'
-                          : selectedDate && selectedDate.getDate() === new Date().getDate() 
-                            ? `Hours until midnight: ${calculatedDays} hours left` 
-                            : `Formula: 30 - (Today: ${new Date().getDate()} - Selected: ${selectedDate ? selectedDate.getDate() : 0}) = ${calculatedDays} days`
-                        }
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Default Duration Display */}
-              {!useCustomExpiryDate && (
-                <div className="bg-gray-700/30 border border-gray-600 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-300 font-semibold text-sm">Default Membership Duration</p>
-                      <p className="text-gray-400 text-xs mt-1">Standard 30-day period</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gray-300 font-bold text-3xl">30</p>
-                      <p className="text-gray-400 text-xs">days</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

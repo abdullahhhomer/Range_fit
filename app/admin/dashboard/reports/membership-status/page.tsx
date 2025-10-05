@@ -65,7 +65,6 @@ interface MembershipData {
 export default function MembershipStatusReport() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
-  const [filterLoading, setFilterLoading] = useState(false)
   const [memberships, setMemberships] = useState<MembershipData[]>([])
   const [filteredMemberships, setFilteredMemberships] = useState<MembershipData[]>([])
   const [dateRange, setDateRange] = useState({
@@ -78,6 +77,7 @@ export default function MembershipStatusReport() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [showHistorical, setShowHistorical] = useState(false)
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
+  const [displayLimit, setDisplayLimit] = useState(20)
 
   // Handle status filter changes
   const handleStatusFilterChange = (value: string) => {
@@ -266,36 +266,30 @@ export default function MembershipStatusReport() {
   }
 
   const applyFilters = useCallback(() => {
-    setFilterLoading(true)
-    
-    // Use setTimeout to show loading state briefly for better UX
-    setTimeout(() => {
-      let filtered = [...memberships]
+    let filtered = [...memberships]
 
-      // Apply historical data filter
-      if (!showHistorical) {
-        filtered = filtered.filter(m => !m.isHistorical)
-      }
+    // Apply historical data filter
+    if (!showHistorical) {
+      filtered = filtered.filter(m => !m.isHistorical)
+    }
 
-      // Apply status filter
-      if (statusFilter !== 'all') {
-        filtered = filtered.filter(m => m.membershipStatus === statusFilter)
-      }
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(m => m.membershipStatus === statusFilter)
+    }
 
-      // Apply date range filter
-      if (dateRange.start) {
-        const startDate = new Date(dateRange.start)
-        filtered = filtered.filter(m => m.createdAt >= startDate)
-      }
-      if (dateRange.end) {
-        const endDate = new Date(dateRange.end)
-        endDate.setHours(23, 59, 59, 999) // End of day
-        filtered = filtered.filter(m => m.createdAt <= endDate)
-      }
+    // Apply date range filter
+    if (dateRange.start) {
+      const startDate = new Date(dateRange.start)
+      filtered = filtered.filter(m => m.createdAt >= startDate)
+    }
+    if (dateRange.end) {
+      const endDate = new Date(dateRange.end)
+      endDate.setHours(23, 59, 59, 999) // End of day
+      filtered = filtered.filter(m => m.createdAt <= endDate)
+    }
 
-      setFilteredMemberships(filtered)
-      setFilterLoading(false)
-    }, 100) // Brief loading state for better UX
+    setFilteredMemberships(filtered)
   }, [memberships, showHistorical, statusFilter, dateRange])
 
   const getStatusStats = () => {
@@ -1071,25 +1065,13 @@ export default function MembershipStatusReport() {
                       <th className="text-left p-3 text-gray-300 font-medium">Member</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Member ID</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Plan</th>
-                      <th className="text-center p-3 text-gray-300 font-medium">Plan Fee</th>
-                      <th className="text-center p-3 text-gray-300 font-medium">Registration Fee</th>
-                      <th className="text-center p-3 text-gray-300 font-medium">Discount</th>
-                      <th className="text-center p-3 text-gray-300 font-medium">Total Amount</th>
+                      <th className="text-center p-3 text-gray-300 font-medium">Status</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Expiry</th>
                       <th className="text-center p-3 text-gray-300 font-medium">Time Remaining</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filterLoading ? (
-                      <tr>
-                        <td colSpan={8} className="p-8 text-center">
-                          <div className="flex items-center justify-center space-x-2">
-                            <RefreshCw className="h-4 w-4 animate-spin text-orange-500" />
-                            <span className="text-gray-400">Applying filters...</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : filteredMemberships.slice(0, 20).map((membership) => {
+                    {filteredMemberships.slice(0, displayLimit).map((membership) => {
                       const realTimeStatus = getRealTimeStatus(membership.membershipExpiryDate, membership.isVisitor)
                       
                       return (
@@ -1138,52 +1120,8 @@ export default function MembershipStatusReport() {
                             )}
                           </div>
                         </td>
-                        <td className="p-3">
-                          <div className="text-gray-300 text-center">
-                            {(() => {
-                              const basePlanFee = getBasePlanFee(membership.membershipPlan)
-                              return basePlanFee > 0 ? (
-                                <span className="text-sm font-medium text-orange-400">
-                                  Rs. {basePlanFee.toLocaleString()}
-                                </span>
-                              ) : (
-                                <span className="text-gray-500 text-sm">-</span>
-                              )
-                            })()}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-gray-300 text-center">
-                            {membership.registrationFee && membership.customRegistrationFee ? (
-                              <span className="text-sm font-medium text-blue-400">
-                                Rs. {membership.customRegistrationFee.toLocaleString()}
-                              </span>
-                            ) : (
-                              <span className="text-gray-500 text-sm">-</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-gray-300 text-center">
-                            {membership.discount && membership.discountAmount && membership.discountAmount > 0 ? (
-                              <span className="text-sm font-medium text-green-400">
-                                Rs. {membership.discountAmount.toLocaleString()}
-                              </span>
-                            ) : (
-                              <span className="text-gray-500 text-sm">-</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="text-gray-300 text-center">
-                            {membership.totalAmount !== undefined && membership.totalAmount !== null ? (
-                              <span className="text-sm font-medium text-white">
-                                Rs. {membership.totalAmount.toLocaleString()}
-                              </span>
-                            ) : (
-                              <span className="text-gray-500 text-sm">-</span>
-                            )}
-                          </div>
+                        <td className="p-3 text-center">
+                          {getMembershipStatusBadge(membership.membershipStatus || 'no_plan', membership.membershipExpiryDate, membership.isVisitor)}
                         </td>
                         <td className="p-3">
                           <div className="text-gray-300 text-center">
@@ -1265,9 +1203,20 @@ export default function MembershipStatusReport() {
                     })}
                   </tbody>
                 </table>
-                {filteredMemberships.length > 20 && (
+                {filteredMemberships.length > displayLimit && (
+                  <div className="text-center mt-6">
+                    <p className="text-gray-400 mb-3">Showing {displayLimit} of {filteredMemberships.length} results</p>
+                    <Button
+                      onClick={() => setDisplayLimit(prev => prev + 20)}
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      Show More
+                    </Button>
+                  </div>
+                )}
+                {filteredMemberships.length <= displayLimit && filteredMemberships.length > 20 && (
                   <div className="text-center mt-4">
-                    <p className="text-gray-400">Showing first 20 results. Use filters to narrow down results.</p>
+                    <p className="text-gray-400">Showing all {filteredMemberships.length} results</p>
                   </div>
                 )}
               </div>

@@ -999,9 +999,8 @@ export default function MembershipsManagement() {
                     <tr className="border-b border-gray-700">
                       <th className="text-left p-3 text-gray-300 font-medium">Member</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Member ID</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Membership Status</th>
+                      <th className="text-left p-3 text-gray-300 font-medium">Status</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Plan</th>
-                      <th className="text-left p-3 text-gray-300 font-medium">Amount</th>
                       <th className="text-left p-3 text-gray-300 font-medium">Expiry Date</th>
                       <th className="text-left p-3 text-gray-300 font-medium">
                         {showVisitorsOnly ? 'Time Remaining' : 'Days Remaining'}
@@ -1055,25 +1054,6 @@ export default function MembershipsManagement() {
                                  <span className="text-gray-500 text-sm">
                                    No Plan
                                  </span>
-                               )}
-                             </div>
-                           </td>
-                                                     <td className="p-3">
-                             <div className="text-gray-300">
-                               {membership.totalAmount !== undefined && membership.totalAmount !== null ? (
-                                 <div className="flex items-center space-x-2">
-                                   <span className="text-sm font-medium">
-                                     Rs. {membership.totalAmount.toLocaleString()}
-                                   </span>
-                                   {membership.registrationFee && (
-                                     <Badge className="bg-blue-600 text-xs">+Reg Fee</Badge>
-                                   )}
-                                   {membership.discount && membership.discountAmount && membership.discountAmount > 0 && (
-                                     <Badge className="bg-green-600 text-xs">Discount</Badge>
-                                   )}
-                                 </div>
-                               ) : (
-                                 <span className="text-gray-500 text-sm">-</span>
                                )}
                              </div>
                            </td>
